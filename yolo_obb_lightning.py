@@ -35,6 +35,7 @@ import math
 import cv2
 import numpy as np
 import yaml
+import logging
 
 
 # =============================================================================
@@ -87,7 +88,8 @@ class YOLOOBBDataset(Dataset):
         if len(self.img_paths) == 0:
             raise ValueError(f"No images found in {self.img_dir}")
         
-        print(f"Found {len(self.img_paths)} images in {self.img_dir}")
+        logger = logging.getLogger(__name__)
+        logger.info(f"Found {len(self.img_paths)} images in {self.img_dir}")
     
     def __len__(self) -> int:
         return len(self.img_paths)
@@ -165,9 +167,8 @@ class YOLOOBBDataset(Dataset):
                 dropped = int((~valid_mask).sum().item())
                 self._invalid_label_total += dropped
                 if label_path.name not in self._invalid_label_files:
-                    print(
-                        f"[warn] {label_path.name}: dropping {dropped} labels with class outside [0, {self.num_classes - 1}]"
-                    )
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"{label_path.name}: dropping {dropped} labels with class outside [0, {self.num_classes - 1}]")
                     self._invalid_label_files.add(label_path.name)
                 labels = labels[valid_mask]
 
@@ -534,18 +535,21 @@ if __name__ == "__main__":
     parser.add_argument("--synthetic", action="store_true", help="Use synthetic data for testing")
     args = parser.parse_args()
     
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logger = logging.getLogger(__name__)
+    
     # Create model first so we know how many classes to expect in labels
     model = YOLOOBBLightning(model_name=args.model, lr=args.lr)
     num_classes = model.nc
 
     # Create datamodule
     if args.synthetic or args.data is None:
-        print("Using synthetic dataset for testing...")
+        logger.info("Using synthetic dataset for testing...")
         train_ds = SyntheticOBBDataset(num_samples=200, img_size=args.img_size, num_classes=num_classes)
         val_ds = SyntheticOBBDataset(num_samples=50, img_size=args.img_size, num_classes=num_classes)
         datamodule = OBBDataModule(train_ds, val_ds, args.batch_size, num_workers=0)
     elif args.data.endswith(".yaml"):
-        print(f"Loading dataset from YAML: {args.data}")
+        logger.info(f"Loading dataset from YAML: {args.data}")
         datamodule = OBBDataModule.from_yaml(
             args.data,
             args.img_size,
@@ -554,7 +558,7 @@ if __name__ == "__main__":
             num_classes=num_classes,
         )
     else:
-        print(f"Loading dataset from directory: {args.data}")
+        logger.info(f"Loading dataset from directory: {args.data}")
         train_ds = YOLOOBBDataset(args.data, "train", args.img_size, num_classes=num_classes)
         val_ds = YOLOOBBDataset(args.data, "val", args.img_size, num_classes=num_classes)
         datamodule = OBBDataModule(train_ds, val_ds, args.batch_size, args.workers)
@@ -562,7 +566,7 @@ if __name__ == "__main__":
     def _report_invalid(ds, split: str):
         invalid = getattr(ds, "_invalid_label_total", 0)
         if invalid:
-            print(f"[warn] {split}: dropped {invalid} labels outside [0, {num_classes - 1}]")
+            logger.warning(f"{split}: dropped {invalid} labels outside [0, {num_classes - 1}]")
 
     if not args.synthetic and args.data is not None:
         _report_invalid(datamodule.train_dataset, "train")
@@ -588,4 +592,4 @@ if __name__ == "__main__":
     # Train
     trainer.fit(model, datamodule=datamodule)
     
-    print("\n✅ Training complete!")
+    logger.info("\n✅ Training complete!")
