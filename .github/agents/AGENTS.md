@@ -8,7 +8,7 @@
 **Tools**: Python, PyTorch Lightning, Ultralytics YOLO, torchmetrics
 **Behavior**:
 
-- Review PRs modifying `yolo_obb_lightning.py` or model training code
+- Review PRs modifying `src/lit_yolo/` package code (models, training, data modules)
 - Validate dataset loading and class mappings
 - Ensure correct use of PyTorch Lightning patterns (LightningModule, Trainer, callbacks)
 - Check reproducibility: fixed seeds, versioned datasets, consistent configs
@@ -46,8 +46,9 @@
 
 Agents may read and reference:
 
-- `README.md`, `pyproject.toml`, `yolo_obb_lightning.py`
-- `src/lit_yolo/`, `notebooks/`
+- `README.md`, `pyproject.toml`
+- `src/lit_yolo/` package (modules: `__main__.py`, `models.py`, `training.py`, `data.py`)
+- `notebooks/`, `yolo_obb_lightning.py` (legacy standalone script)
 - Training run metadata and configuration files
 
 ## 🧭 Mission Rules
