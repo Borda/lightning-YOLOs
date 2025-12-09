@@ -8,21 +8,21 @@ models using PyTorch Lightning with proper logging, CLI configuration, and metri
 Features:
     - Logging with appropriate levels (DEBUG, INFO, WARNING, ERROR)
     - jsonargparse CLI with automatic argument parsing from function signatures
-    - Ultralytics OBBMetrics for mAP@50, mAP@50:95 evaluation
+    - TorchMetrics MeanAveragePrecision for mAP@50, mAP@50:95 evaluation
     - Memory-efficient training with gradient clipping and AMP
     - Automatic class detection from dataset labels
+
+Note on Metrics:
+    OBB predictions are converted to axis-aligned bounding boxes for TorchMetrics
+    compatibility. This provides a reasonable approximation for evaluation purposes.
 
 Usage:
     python yolo_obb_lightning_v4.py --data /path/to/dataset --model yolo11n-obb.pt
     python yolo_obb_lightning_v4.py --config config.yaml
     python yolo_obb_lightning_v4.py --help
 
-Configuration (config.yaml):
-    data: /path/to/dataset
-    model: yolo11n-obb.pt
-    epochs: 100
-    batch_size: 8
-    lr: 0.001
+Dependencies:
+    pip install pytorch-lightning ultralytics "jsonargparse[signatures]" "torchmetrics[detection]"
 """
 
 from __future__ import annotations
@@ -501,24 +501,31 @@ class YOLOOBBLightning(pl.LightningModule):
         logger.info(f"Model: {model_name} ({self.nc} classes, metrics={'enabled' if self._has_metrics else 'disabled'})")
 
     def _init_metrics(self) -> None:
-        """Initialize Ultralytics OBBMetrics for validation."""
+        """Initialize TorchMetrics MeanAveragePrecision for validation.
+
+        Note: Converts OBB to axis-aligned bounding boxes for TorchMetrics compatibility.
+        """
         try:
-            from ultralytics.utils.metrics import OBBMetrics
-            class_names = {i: f"class_{i}" for i in range(self.nc)}
-            self.val_metrics = OBBMetrics(names=class_names)
+            from torchmetrics.detection import MeanAveragePrecision
+            # Register as module attribute for automatic device placement
+            self.map_metric = MeanAveragePrecision(box_format="xyxy", iou_type="bbox")
             self._has_metrics = True
         except ImportError:
-            self.val_metrics = None
+            logger.warning("torchmetrics[detection] not installed, metrics disabled")
+            self.map_metric = None
             self._has_metrics = False
 
     def setup(self, stage: Optional[str] = None) -> None:
-        """Move criterion tensors to correct device."""
+        """Setup model and move metric to device."""
         for param in self.model.parameters():
             param.requires_grad = True
 
         self.criterion.device = self.device
         if hasattr(self.criterion, "proj"):
             self.criterion.proj = self.criterion.proj.to(self.device)
+
+        if self._has_metrics:
+            self.map_metric = self.map_metric.to(self.device)
 
     def forward(self, x: torch.Tensor) -> Any:
         """Forward pass through YOLO model."""
@@ -580,73 +587,123 @@ class YOLOOBBLightning(pl.LightningModule):
         return {"loss": total_loss}
 
     def _update_metrics(self, preds: Any, batch: Dict[str, Any]) -> None:
-        """Update OBBMetrics with predictions and ground truth."""
-        from ultralytics.utils.metrics import batch_probiou
+        """Update TorchMetrics with predictions converted to axis-aligned boxes."""
         from ultralytics.utils.ops import non_max_suppression_rotated
 
-        # Get raw predictions and apply NMS
+        # Apply NMS to raw predictions
         pred_raw = preds[0] if isinstance(preds, (list, tuple)) else preds
-
-        # Apply rotated NMS
         nms_preds = non_max_suppression_rotated(
-            pred_raw,
-            conf_thres=0.001,
-            iou_thres=0.7,
-            nc=self.nc,
-            max_det=300,
+            pred_raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300
         )
 
-        # Process each image in batch
-        batch_idx = batch["batch_idx"]
-        gt_cls = batch["cls"]
-        gt_bboxes = batch["bboxes"]
+        batch_idx_tensor = batch["batch_idx"]
+        gt_cls_all = batch["cls"]
+        gt_bboxes_all = batch["bboxes"]
+        scale = self._img_size
+
+        preds_list, targets_list = [], []
 
         for img_idx, pred in enumerate(nms_preds):
             # Get ground truth for this image
-            mask = batch_idx == img_idx
-            gt_cls_i = gt_cls[mask].squeeze(-1) if mask.sum() > 0 else torch.empty(0)
-            gt_bboxes_i = gt_bboxes[mask] if mask.sum() > 0 else torch.empty((0, 5))
+            mask = batch_idx_tensor == img_idx
+            gt_cls = gt_cls_all[mask].squeeze(-1) if mask.sum() > 0 else torch.empty(0)
+            gt_bboxes = gt_bboxes_all[mask] if mask.sum() > 0 else torch.empty((0, 5))
 
-            if pred is None or len(pred) == 0:
-                continue
+            # Convert GT OBB (xywhr normalized) to axis-aligned xyxy (pixels)
+            if len(gt_bboxes) > 0:
+                gt_xyxy = self._obb_to_xyxy(gt_bboxes.to(self.device), scale)
+                targets_list.append({
+                    "boxes": gt_xyxy,
+                    "labels": gt_cls.long().to(self.device),
+                })
+            else:
+                targets_list.append({
+                    "boxes": torch.empty((0, 4), device=self.device),
+                    "labels": torch.empty(0, dtype=torch.long, device=self.device),
+                })
 
-            # pred format after NMS: [x, y, w, h, angle, conf, cls]
-            pred_bboxes = pred[:, :5]  # xywhr
-            pred_conf = pred[:, 5]
-            pred_cls = pred[:, 6]
+            # Convert predictions OBB to axis-aligned xyxy
+            if pred is not None and len(pred) > 0:
+                pred_xyxy = self._obb_to_xyxy(pred[:, :5], scale)
+                preds_list.append({
+                    "boxes": pred_xyxy,
+                    "scores": pred[:, 5],
+                    "labels": pred[:, 6].long(),
+                })
+            else:
+                preds_list.append({
+                    "boxes": torch.empty((0, 4), device=self.device),
+                    "scores": torch.empty(0, device=self.device),
+                    "labels": torch.empty(0, dtype=torch.long, device=self.device),
+                })
 
-            # Compute IoU using batch_probiou
-            if len(gt_bboxes_i) > 0 and len(pred_bboxes) > 0:
-                # Scale to pixel coordinates for IoU
-                scale = self._img_size
-                pred_bboxes_px = pred_bboxes.clone()
-                pred_bboxes_px[:, :4] *= scale
+        self.map_metric.update(preds_list, targets_list)
 
-                gt_bboxes_px = gt_bboxes_i.clone().to(pred_bboxes.device)
-                gt_bboxes_px[:, :4] *= scale
+    @staticmethod
+    def _obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
+        """Convert OBB (xywhr) to axis-aligned bounding box (xyxy).
 
-                iou = batch_probiou(gt_bboxes_px, pred_bboxes_px)
+        Args:
+            obb: Oriented boxes [N, 5] as (cx, cy, w, h, angle)
+            scale: Scale factor (for normalized coords to pixels)
 
-                # TODO: Accumulate stats for mAP computation
-                # Full implementation would use match_predictions from Ultralytics
+        Returns:
+            Axis-aligned boxes [N, 4] as (x1, y1, x2, y2)
+        """
+        if len(obb) == 0:
+            return torch.empty((0, 4), device=obb.device)
+
+        cx, cy, w, h, angle = obb[:, 0], obb[:, 1], obb[:, 2], obb[:, 3], obb[:, 4]
+
+        # Scale to pixels
+        cx, cy, w, h = cx * scale, cy * scale, w * scale, h * scale
+
+        # Compute corners of rotated box
+        cos_a, sin_a = torch.cos(angle), torch.sin(angle)
+
+        # Half dimensions
+        hw, hh = w / 2, h / 2
+
+        # Four corners relative to center
+        dx = torch.stack([hw, hw, -hw, -hw], dim=1)
+        dy = torch.stack([hh, -hh, -hh, hh], dim=1)
+
+        # Rotate corners
+        rx = dx * cos_a.unsqueeze(1) - dy * sin_a.unsqueeze(1)
+        ry = dx * sin_a.unsqueeze(1) + dy * cos_a.unsqueeze(1)
+
+        # Absolute corner positions
+        corners_x = cx.unsqueeze(1) + rx
+        corners_y = cy.unsqueeze(1) + ry
+
+        # Get axis-aligned bounding box
+        x1 = corners_x.min(dim=1).values
+        y1 = corners_y.min(dim=1).values
+        x2 = corners_x.max(dim=1).values
+        y2 = corners_y.max(dim=1).values
+
+        return torch.stack([x1, y1, x2, y2], dim=1)
 
     def on_validation_epoch_start(self) -> None:
         """Reset metrics at start of validation epoch."""
-        if self._has_metrics and self.val_metrics is not None:
-            self.val_metrics.stats = {"tp": [], "conf": [], "pred_cls": [], "target_cls": []}
+        if self._has_metrics:
+            self.map_metric.reset()
 
     def on_validation_epoch_end(self) -> None:
         """Compute and log final validation metrics."""
-        if not self._has_metrics or self.val_metrics is None:
+        if not self._has_metrics:
             return
 
-        results = getattr(self.val_metrics, "results_dict", {})
-        if results:
-            map50 = results.get("metrics/mAP50(B)", 0.0)
-            map50_95 = results.get("metrics/mAP50-95(B)", 0.0)
+        try:
+            metrics = self.map_metric.compute()
+            map50 = metrics["map_50"].item()
+            map50_95 = metrics["map"].item()
+
             self.log("val/mAP50", map50, sync_dist=True)
             self.log("val/mAP50-95", map50_95, sync_dist=True)
             logger.info(f"Validation: mAP50={map50:.4f}, mAP50-95={map50_95:.4f}")
+        except Exception as e:
+            logger.warning(f"Failed to compute metrics: {e}")
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizer and learning rate scheduler."""
