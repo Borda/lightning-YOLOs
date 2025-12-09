@@ -4,9 +4,20 @@ YOLO-OBB Training with PyTorch Lightning - Refactored Package Structure
 
 ## Installation
 
+The package can be installed using pip with the included `pyproject.toml`:
+
 ```bash
-pip install -r requirements.txt
+# Install in editable mode (recommended for development)
+pip install -e .
+
+# Or install from the repository root
+pip install .
+
+# Or install with optional development dependencies
+pip install -e ".[dev]"
 ```
+
+**Note:** The old `requirements.txt` is still available for reference, but dependencies are now managed through `pyproject.toml`.
 
 ## Usage
 
@@ -15,14 +26,17 @@ pip install -r requirements.txt
 Run the training using the CLI:
 
 ```bash
-# Using python -m
+# Using python -m (works without installation)
 python -m lit_yolo --data /path/to/dataset --model yolo11n-obb.pt
 
+# Using the installed command (after pip install)
+lit-yolo --data /path/to/dataset --model yolo11n-obb.pt
+
 # With a config file
-python -m lit_yolo --config config.yaml
+lit-yolo --config config.yaml
 
 # With custom parameters
-python -m lit_yolo --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size 16
+lit-yolo --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size 16
 ```
 
 ### Python API
