@@ -4,11 +4,8 @@ YOLO-OBB Training with PyTorch Lightning
 Features: logging, jsonargparse CLI, TorchMetrics mAP (train+val), AMP, auto class detection.
 
 Usage:
-    python -m lit_yolo --data /path/to/dataset --model yolo11n-obb.pt
-    python -m lit_yolo --config config.yaml
-
-Dependencies:
-    pip install pytorch-lightning ultralytics "jsonargparse[signatures]" "torchmetrics[detection]"
+    python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
+    python -m lit_yolo train --config config.yaml
 """
 
 # Import main components

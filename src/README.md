@@ -25,16 +25,16 @@ Run the training using the CLI:
 
 ```bash
 # Using python -m (works without installation)
-python -m lit_yolo --data /path/to/dataset --model yolo11n-obb.pt
+python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
 
 # Using the installed command (after pip install)
-lit-yolo --data /path/to/dataset --model yolo11n-obb.pt
+lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt
 
 # With a config file
-lit-yolo --config config.yaml
+lit-yolo train --config config.yaml
 
 # With custom parameters
-lit-yolo --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size 16
+lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size 16
 ```
 
 ### Python API

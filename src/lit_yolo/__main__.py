@@ -1,9 +1,5 @@
 """
 CLI entry point for lit_yolo package.
-
-Usage:
-    python -m lit_yolo --data /path/to/dataset --model yolo11n-obb.pt
-    python -m lit_yolo --config config.yaml
 """
 
 import logging
@@ -28,7 +24,9 @@ def main():
     except ImportError:
         logger.error("Install jsonargparse: pip install 'jsonargparse[signatures]'")
         sys.exit(1)
-    CLI(train, as_positional=False)
+    
+    # Use dictionary-based CLI for subcommands
+    CLI({"train": train}, as_positional=False)
 
 
 if __name__ == "__main__":

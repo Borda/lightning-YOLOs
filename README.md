@@ -16,10 +16,10 @@ pip install .
 
 ```bash
 # Run training with CLI
-python -m lit_yolo --data /path/to/dataset --model yolo11n-obb.pt
+python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
 
 # Or use the installed command
-lit-yolo --data /path/to/dataset --model yolo11n-obb.pt
+lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt
 ```
 
 ## Example: Download DOTA v1.5 dataset
