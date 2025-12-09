@@ -48,7 +48,7 @@ Agents may read and reference:
 
 - `README.md`, `pyproject.toml`
 - `src/` package code
-- `notebooks/`, `yolo_obb_lightning.py` (legacy standalone script)
+- `notebooks/` (legacy standalone script)
 - Training run metadata and configuration files
 
 ## 🧭 Mission Rules
