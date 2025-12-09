@@ -65,7 +65,9 @@ def train(
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
-    prec = precision if torch.cuda.is_available() or "16" not in precision else "32"
+    # Check if precision requires CUDA
+    requires_cuda = precision in ("16-mixed", "bf16-mixed", "16", "bf16")
+    prec = precision if torch.cuda.is_available() or not requires_cuda else "32"
     if prec != precision:
         logger.warning("CUDA unavailable, using 32-bit precision")
 

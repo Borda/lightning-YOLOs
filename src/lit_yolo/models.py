@@ -177,7 +177,7 @@ class YOLOOBBLightning(pl.LightningModule):
         ], lr=self.hparams.lr)
 
         # Use trainer max_epochs if available, otherwise fall back to a default
-        max_epochs = getattr(self.trainer, "max_epochs", None) if hasattr(self, "trainer") and self.trainer else 100
+        max_epochs = getattr(getattr(self, "trainer", None), "max_epochs", 100)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=max(1, max_epochs - self.hparams.warmup_epochs),
             eta_min=self.hparams.lr * 0.01
