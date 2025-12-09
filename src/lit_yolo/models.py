@@ -64,16 +64,11 @@ class YOLOOBBLightning(pl.LightningModule):
 
         self.criterion = self.model.init_criterion()
 
-        # Initialize metrics (train and val)
-        try:
-            from torchmetrics.detection import MeanAveragePrecision
-            self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox")
-            self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox")
-        except ImportError:
-            logger.warning("torchmetrics[detection] not installed, metrics disabled")
-            self.train_map = self.val_map = None
+        # Metrics will be initialized in setup() after device assignment
+        self.train_map = None
+        self.val_map = None
 
-        logger.info(f"Model: {model_name} ({self.nc} classes, metrics={'on' if self.val_map else 'off'})")
+        logger.info(f"Model: {model_name} ({self.nc} classes)")
 
     def setup(self, stage: str | None = None):
         for p in self.model.parameters():
@@ -81,9 +76,16 @@ class YOLOOBBLightning(pl.LightningModule):
         self.criterion.device = self.device
         if hasattr(self.criterion, "proj"):
             self.criterion.proj = self.criterion.proj.to(self.device)
-        if self.val_map:
-            self.train_map = self.train_map.to(self.device)
-            self.val_map = self.val_map.to(self.device)
+        
+        # Initialize metrics on the correct device
+        if self.train_map is None:
+            try:
+                from torchmetrics.detection import MeanAveragePrecision
+                self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
+                self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
+                logger.info("Metrics enabled: train and val mAP")
+            except ImportError:
+                logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
     def forward(self, x: torch.Tensor):
         return self.model(x)
@@ -174,8 +176,10 @@ class YOLOOBBLightning(pl.LightningModule):
             {"params": no_decay, "weight_decay": 0.0},
         ], lr=self.hparams.lr)
 
+        # Use trainer max_epochs if available, otherwise fall back to a default
+        max_epochs = getattr(self.trainer, "max_epochs", None) if hasattr(self, "trainer") and self.trainer else 100
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=max(1, self.trainer.max_epochs - self.hparams.warmup_epochs),
+            optimizer, T_max=max(1, max_epochs - self.hparams.warmup_epochs),
             eta_min=self.hparams.lr * 0.01
         )
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"}}

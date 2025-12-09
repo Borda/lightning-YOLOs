@@ -13,15 +13,6 @@ Dependencies:
 
 from __future__ import annotations
 
-import logging
-
-# Configure logging for the package
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-
 # Import main components
 from .data import OBBDataModule, YOLOOBBDataset, corners_to_xywhr, detect_num_classes, obb_to_xyxy
 from .models import YOLOOBBLightning

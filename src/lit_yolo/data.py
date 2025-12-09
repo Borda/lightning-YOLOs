@@ -48,14 +48,17 @@ def detect_num_classes(root: Path) -> int:
     return max_class + 1
 
 
+# Scaling factor for corner coordinates to improve numerical stability in minAreaRect
+_CORNER_SCALE = 1000.0
+
+
 def corners_to_xywhr(corners: np.ndarray) -> tuple[float, float, float, float, float]:
     """Convert 4 corner points to (cx, cy, w, h, angle) format."""
-    SCALE = 1000.0
-    corners_px = (corners * SCALE).astype(np.float32)
+    corners_px = (corners * _CORNER_SCALE).astype(np.float32)
     (cx_px, cy_px), (w_px, h_px), angle_deg = cv2.minAreaRect(corners_px)
 
-    cx, cy = cx_px / SCALE, cy_px / SCALE
-    w, h = w_px / SCALE, h_px / SCALE
+    cx, cy = cx_px / _CORNER_SCALE, cy_px / _CORNER_SCALE
+    w, h = w_px / _CORNER_SCALE, h_px / _CORNER_SCALE
 
     if w < h:
         w, h = h, w
