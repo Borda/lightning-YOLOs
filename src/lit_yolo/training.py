@@ -2,8 +2,6 @@
 Training function and configuration for YOLO-OBB.
 """
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 
@@ -13,7 +11,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from .data import OBBDataModule
-from .models import YOLOOBBLightning
+from .models import LitYOLOOBB
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +58,7 @@ def train(
     dm = OBBDataModule(data, img_size, batch_size, workers, num_classes)
     nc = dm.num_classes  # Triggers auto-detection if needed
 
-    lightning_model = YOLOOBBLightning(model, nc, lr, weight_decay, warmup_epochs, img_size)
+    lightning_model = LitYOLOOBB(model, nc, lr, weight_decay, warmup_epochs, img_size)
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)

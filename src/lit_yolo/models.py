@@ -2,8 +2,6 @@
 YOLO-OBB Lightning module for training.
 """
 
-from __future__ import annotations
-
 import logging
 import tempfile
 from pathlib import Path
@@ -20,7 +18,7 @@ from .data import obb_to_xyxy
 logger = logging.getLogger(__name__)
 
 
-class YOLOOBBLightning(pl.LightningModule):
+class LitYOLOOBB(pl.LightningModule):
     """Lightning module for YOLO-OBB training with TorchMetrics."""
 
     def __init__(

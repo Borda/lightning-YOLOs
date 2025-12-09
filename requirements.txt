@@ -1,4 +1,0 @@
-pytorch-lightning >=2.0.0, <2.6.0
-ultralytics
-jsonargparse[signatures]
-torchmetrics[detection]

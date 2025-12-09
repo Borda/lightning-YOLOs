@@ -11,17 +11,15 @@ Dependencies:
     pip install pytorch-lightning ultralytics "jsonargparse[signatures]" "torchmetrics[detection]"
 """
 
-from __future__ import annotations
-
 # Import main components
 from .data import OBBDataModule, YOLOOBBDataset, corners_to_xywhr, detect_num_classes, obb_to_xyxy
-from .models import YOLOOBBLightning
+from .models import LitYOLOOBB
 from .training import train
 
 __all__ = [
     "OBBDataModule",
     "YOLOOBBDataset",
-    "YOLOOBBLightning",
+    "LitYOLOOBB",
     "corners_to_xywhr",
     "detect_num_classes",
     "obb_to_xyxy",

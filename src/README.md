@@ -17,8 +17,6 @@ pip install .
 pip install -e ".[dev]"
 ```
 
-**Note:** The old `requirements.txt` is still available for reference, but dependencies are now managed through `pyproject.toml`.
-
 ## Usage
 
 ### Command Line Interface
@@ -44,7 +42,7 @@ lit-yolo --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size
 You can also import and use the package in your Python code:
 
 ```python
-from lit_yolo import train, YOLOOBBLightning, OBBDataModule
+from lit_yolo import train, LitYOLOOBB, OBBDataModule
 
 # Train using the function
 train(
@@ -59,7 +57,7 @@ train(
 from pytorch_lightning import Trainer
 
 dm = OBBDataModule(data="/path/to/dataset", batch_size=8)
-model = YOLOOBBLightning(model_name="yolo11n-obb.pt", num_classes=15)
+model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=15)
 
 trainer = Trainer(max_epochs=100)
 trainer.fit(model, datamodule=dm)
@@ -72,7 +70,7 @@ src/lit_yolo/
 ├── __init__.py      # Package initialization and exports
 ├── __main__.py      # CLI entry point
 ├── data.py          # Dataset, DataModule, and data utilities
-├── models.py        # YOLOOBBLightning model
+├── models.py        # LitYOLOOBB model
 └── training.py      # Training function
 ```
 

@@ -6,8 +6,6 @@ Usage:
     python -m lit_yolo --config config.yaml
 """
 
-from __future__ import annotations
-
 import logging
 import sys
 

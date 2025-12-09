@@ -2,8 +2,6 @@
 Data utilities, dataset, and data module for YOLO-OBB.
 """
 
-from __future__ import annotations
-
 import logging
 import math
 from pathlib import Path
