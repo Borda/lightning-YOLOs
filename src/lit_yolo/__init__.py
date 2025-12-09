@@ -5,9 +5,9 @@ Features: logging, jsonargparse CLI, TorchMetrics mAP (train+val), AMP, auto cla
 """
 
 # Import main components
-from .data import OBBDataModule, YOLOOBBDataset, corners_to_xywhr, detect_num_classes, obb_to_xyxy
-from .models import LitYOLOOBB
-from .training import train
+from lit_yolo.data import OBBDataModule, YOLOOBBDataset, corners_to_xywhr, detect_num_classes, obb_to_xyxy
+from lit_yolo.models import LitYOLOOBB
+from lit_yolo.training import train
 
 __all__ = [
     "OBBDataModule",

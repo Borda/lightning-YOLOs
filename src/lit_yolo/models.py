@@ -13,7 +13,7 @@ import yaml
 
 import pytorch_lightning as pl
 
-from .data import obb_to_xyxy
+from lit_yolo.data import obb_to_xyxy
 
 logger = logging.getLogger(__name__)
 

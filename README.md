@@ -32,3 +32,9 @@ python -m py_tree DOTAv1.5 -d 1
 ```
 
 For detailed usage instructions, see [src/README.md](src/README.md).
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](LICENSE) file for details.
+
+**Important**: This project depends on [Ultralytics](https://github.com/ultralytics/ultralytics), which is licensed under AGPL-3.0. When using this software with Ultralytics, the combined work is subject to AGPL-3.0 terms. See [NOTICE](NOTICE) for more details.

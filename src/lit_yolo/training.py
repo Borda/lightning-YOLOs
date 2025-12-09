@@ -10,8 +10,8 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
-from .data import OBBDataModule
-from .models import LitYOLOOBB
+from lit_yolo.data import OBBDataModule
+from lit_yolo.models import LitYOLOOBB
 
 logger = logging.getLogger(__name__)
 

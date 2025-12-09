@@ -16,7 +16,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from .training import train
+from lit_yolo.training import train
 
 logger = logging.getLogger(__name__)
 
