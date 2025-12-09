@@ -4,7 +4,7 @@
 
 ### Engineer
 
-**Role**: YOLO-OBB training and PyTorch Lightning specialist
+**Role**: YOLO training and PyTorch Lightning specialist
 **Tools**: Python, PyTorch Lightning, Ultralytics YOLO, torchmetrics
 **Behavior**:
 
@@ -16,7 +16,7 @@
 ### Doc-Scribe
 
 **Role**: Documentation and reproducibility assistant
-**Tools**: Markdown, GitHub Wiki
+**Tools**: Markdown
 **Behavior**:
 
 - Maintain README with setup, training, and inference instructions
@@ -47,7 +47,7 @@
 Agents may read and reference:
 
 - `README.md`, `pyproject.toml`
-- `src/lit_yolo/` package (modules: `__main__.py`, `models.py`, `training.py`, `data.py`)
+- `src/` package code
 - `notebooks/`, `yolo_obb_lightning.py` (legacy standalone script)
 - Training run metadata and configuration files
 
@@ -73,7 +73,7 @@ Agents may read and reference:
 - Update README if CLI, config, or training logic changes
 - Include example usage:
   ```bash
-  lit-yolo fit --config config.yaml
+  lit-yolo train --config config.yaml
   lit-yolo test --config config.yaml --ckpt_path path/to/checkpoint.ckpt
   ```
 

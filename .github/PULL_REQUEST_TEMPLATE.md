@@ -10,7 +10,8 @@ Please include a summary of the changes and the related issue. Please also inclu
 
 Please describe the tests that you ran to verify your changes.
 
-## Checklist:
+<details>
+<summary>Checklist</summary>
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my code
@@ -19,3 +20,5 @@ Please describe the tests that you ran to verify your changes.
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
+
+</details>
