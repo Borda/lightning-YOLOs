@@ -1,11 +1,11 @@
 """
-YOLO-OBB Training with PyTorch Lightning (v6)
+YOLO-OBB Training with PyTorch Lightning
 
 Features: logging, jsonargparse CLI, TorchMetrics mAP (train+val), AMP, auto class detection.
 
 Usage:
-    python yolo_obb_lightning_v6.py --data /path/to/dataset --model yolo11n-obb.pt
-    python yolo_obb_lightning_v6.py --config config.yaml
+    python yolo_obb_lightning.py --data /path/to/dataset --model yolo11n-obb.pt
+    python yolo_obb_lightning.py --config config.yaml
 
 Dependencies:
     pip install pytorch-lightning ultralytics "jsonargparse[signatures]" "torchmetrics[detection]"
@@ -52,10 +52,11 @@ def detect_num_classes(root: Path) -> int:
             continue
         for lf in label_dir.glob("*.txt"):
             try:
-                for line in open(lf):
-                    parts = line.strip().split()
-                    if parts:
-                        max_class = max(max_class, int(parts[0]))
+                with open(lf) as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if parts:
+                            max_class = max(max_class, int(parts[0]))
                 files_scanned += 1
             except (ValueError, IOError):
                 continue
@@ -79,6 +80,8 @@ def corners_to_xywhr(corners: np.ndarray) -> tuple[float, float, float, float, f
         w, h = h, w
         angle_deg += 90
 
+    # Clamp angle to [0, pi/2) with a small epsilon to avoid edge cases where angle == pi/2,
+    # which can cause issues in downstream calculations (e.g., with trigonometric functions).
     angle_rad = max(0.0, min((angle_deg % 90) * math.pi / 180.0, math.pi / 2 - 1e-6))
     return cx, cy, w, h, angle_rad
 
@@ -112,6 +115,8 @@ class YOLOOBBDataset(Dataset):
     FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
     def __init__(self, root: Path, split: str, img_size: int, num_classes: int):
+        if not isinstance(img_size, int) or img_size <= 0:
+            raise ValueError(f"img_size must be a positive integer, got {img_size}")
         self.img_size, self.num_classes = img_size, num_classes
         self.img_dir = root / "images" / split
         self.label_dir = root / "labels" / split
@@ -153,18 +158,19 @@ class YOLOOBBDataset(Dataset):
             return torch.zeros((0, 6), dtype=torch.float32)
 
         labels = []
-        for line in open(path):
-            parts = line.strip().split()
-            if len(parts) != 9:
-                continue
-            try:
-                cls = int(parts[0])
-                if not (0 <= cls < self.num_classes):
+        with open(path) as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) != 9:
                     continue
-                corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                labels.append([cls, *corners_to_xywhr(corners)])
-            except ValueError:
-                continue
+                try:
+                    cls = int(parts[0])
+                    if not (0 <= cls < self.num_classes):
+                        continue
+                    corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
+                    labels.append([cls, *corners_to_xywhr(corners)])
+                except ValueError:
+                    continue
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
@@ -278,7 +284,7 @@ class YOLOOBBLightning(pl.LightningModule):
                 yolo = YOLO(temp_yaml)
             finally:
                 Path(temp_yaml).unlink(missing_ok=True)
-            logger.debug(f"Rebuilt model: {model_nc} -> {num_classes} classes")
+            logger.info(f"Rebuilt model: {model_nc} -> {num_classes} classes")
 
         self.model = yolo.model
         self.nc = num_classes
