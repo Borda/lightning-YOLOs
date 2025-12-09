@@ -8,7 +8,7 @@
 **Tools**: Python, PyTorch Lightning, Ultralytics YOLO, torchmetrics
 **Behavior**:
 
-- Review PRs modifying `src/lit_yolo/` package code (models, training, data modules)
+- Review PRs modifying code in the `src/` folder
 - Validate dataset loading and class mappings
 - Ensure correct use of PyTorch Lightning patterns (LightningModule, Trainer, callbacks)
 - Check reproducibility: fixed seeds, versioned datasets, consistent configs
