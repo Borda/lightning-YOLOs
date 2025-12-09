@@ -17,7 +17,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -33,10 +33,10 @@ dependencies = [
     "ultralytics",
     "jsonargparse[signatures]",
     "torchmetrics[detection]",
-    "opencv-python",
-    "numpy",
-    "torch",
-    "pyyaml",
+    "opencv-python>=4.5.0",
+    "numpy>=1.20.0",
+    "torch>=1.13.0",
+    "pyyaml>=5.1",
 ]
 
 [project.optional-dependencies]
