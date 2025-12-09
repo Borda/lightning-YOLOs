@@ -1,5 +1,9 @@
 """
 CLI entry point for lit_yolo package.
+
+Usage:
+    python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
+    python -m lit_yolo train --config config.yaml
 """
 
 import logging
