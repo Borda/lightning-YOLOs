@@ -1,0 +1,7 @@
+# Track Jupyter notebooks with Git LFS
+notebooks/*.ipynb filter=lfs diff=lfs merge=lfs -text
+# Optional: track model weights and datasets often large
+*.pt filter=lfs diff=lfs merge=lfs -text
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.zip filter=lfs diff=lfs merge=lfs -text
+DOTAv1.5.zip filter=lfs diff=lfs merge=lfs -text
