@@ -44,6 +44,52 @@ def obb_dataset_dir(tmp_path, create_test_image):
     return root
 
 
+@pytest.fixture
+def standard_detection_dataset(obb_dataset_dir, create_test_image):
+    """Create a synthetic dataset with standard detection format (5 values).
+
+    Returns:
+        Path to dataset root with a single image and standard detection labels.
+    """
+    # Create test image
+    img_path = obb_dataset_dir / "images" / "train" / "test1.jpg"
+    create_test_image(img_path)
+
+    # Create label file with standard detection format
+    label_path = obb_dataset_dir / "labels" / "train" / "test1.txt"
+    with open(label_path, "w") as f:
+        f.write("0 0.5 0.5 0.3 0.4\n")
+        f.write("1 0.3 0.3 0.2 0.2\n")
+
+    return obb_dataset_dir
+
+
+@pytest.fixture
+def mixed_format_dataset(obb_dataset_dir, create_test_image):
+    """Create a synthetic dataset with mixed standard detection and OBB formats.
+
+    Returns:
+        Path to dataset root with two images - one with standard detection, one with OBB format.
+    """
+    # Create test images
+    img1_path = obb_dataset_dir / "images" / "train" / "test_standard.jpg"
+    img2_path = obb_dataset_dir / "images" / "train" / "test_obb.jpg"
+    create_test_image(img1_path)
+    create_test_image(img2_path)
+
+    # Standard detection format
+    label1_path = obb_dataset_dir / "labels" / "train" / "test_standard.txt"
+    with open(label1_path, "w") as f:
+        f.write("0 0.5 0.5 0.3 0.4\n")
+
+    # OBB format
+    label2_path = obb_dataset_dir / "labels" / "train" / "test_obb.txt"
+    with open(label2_path, "w") as f:
+        f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
+
+    return obb_dataset_dir
+
+
 class TestCornersToXywhr:
     """Tests for corners_to_xywhr function."""
 
@@ -314,20 +360,10 @@ class TestXywhToXyxy:
 class TestYOLOOBBDataset:
     """Tests for YOLOOBBDataset class."""
 
-    def test_load_standard_detection_format(self, obb_dataset_dir, create_test_image):
+    def test_load_standard_detection_format(self, standard_detection_dataset):
         """Test loading standard detection format (5 values: class x y w h)."""
-        # Create test image
-        img_path = obb_dataset_dir / "images" / "train" / "test1.jpg"
-        create_test_image(img_path)
-
-        # Create label file with standard detection format
-        label_path = obb_dataset_dir / "labels" / "train" / "test1.txt"
-        with open(label_path, "w") as f:
-            f.write("0 0.5 0.5 0.3 0.4\n")
-            f.write("1 0.3 0.3 0.2 0.2\n")
-
         # Load dataset
-        dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(standard_detection_dataset, "train", img_size=640, num_classes=2)
 
         # Get first item
         img_tensor, labels = dataset[0]
@@ -422,26 +458,10 @@ class TestYOLOOBBDataset:
         # Warning should be logged exactly once
         assert warning_count == 1
 
-    def test_mixed_format_handling(self, obb_dataset_dir, create_test_image):
+    def test_mixed_format_handling(self, mixed_format_dataset):
         """Test that dataset can handle files without both formats mixed in same label file."""
-        # Create test images
-        img1_path = obb_dataset_dir / "images" / "train" / "test_standard.jpg"
-        img2_path = obb_dataset_dir / "images" / "train" / "test_obb.jpg"
-        create_test_image(img1_path)
-        create_test_image(img2_path)
-
-        # Standard detection format
-        label1_path = obb_dataset_dir / "labels" / "train" / "test_standard.txt"
-        with open(label1_path, "w") as f:
-            f.write("0 0.5 0.5 0.3 0.4\n")
-
-        # OBB format
-        label2_path = obb_dataset_dir / "labels" / "train" / "test_obb.txt"
-        with open(label2_path, "w") as f:
-            f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
-
         # Load dataset
-        dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(mixed_format_dataset, "train", img_size=640, num_classes=2)
 
         # Both images should load successfully
         assert len(dataset) == 2

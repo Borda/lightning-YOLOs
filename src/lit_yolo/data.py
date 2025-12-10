@@ -263,6 +263,11 @@ class YOLOOBBDataset(Dataset):
                     continue
             else:
                 # Skip invalid formats
+                if parts:  # Only warn if line is not empty
+                    logger.warning(
+                        f"Unsupported format in {path}: expected 5 values (standard detection) "
+                        f"or 9 values (OBB), got {len(parts)} values"
+                    )
                 continue
 
         # Log warning only once per dataset to avoid log noise
