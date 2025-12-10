@@ -236,6 +236,8 @@ class YOLOOBBDataset(Dataset):
         for line in lines:
             parts = line.strip().split()
             if len(parts) != 9:
+                if parts:  # Only log if line is not empty
+                    logger.debug(f"Skipping line in {path}: expected 9 values (class + 8 corners), got {len(parts)}")
                 continue
             try:
                 cls = int(parts[0])
@@ -249,7 +251,8 @@ class YOLOOBBDataset(Dataset):
                     )
                     continue
                 labels.append([cls, *corners_to_xywhr(corners)])
-            except ValueError:
+            except ValueError as e:
+                logger.debug(f"Skipping invalid line in {path}: {e}")
                 continue
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
@@ -277,6 +280,18 @@ class YOLODetDataset(Dataset):
     FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
     def __init__(self, root: Path, split: str, img_size: int, num_classes: int):
+        """Initialize the YOLODetDataset.
+
+        Args:
+            root: Root directory containing 'images/' and 'labels/' subdirectories.
+            split: Dataset split ('train', 'val', or 'test').
+            img_size: Target image size for resizing (e.g., 640).
+            num_classes: Number of object classes in the dataset.
+
+        Raises:
+            ValueError: If img_size is not a positive integer or no images found.
+            FileNotFoundError: If image directory does not exist.
+        """
         if not isinstance(img_size, int) or img_size <= 0:
             raise ValueError(f"img_size must be a positive integer, got {img_size}")
         self.img_size, self.num_classes = img_size, num_classes
@@ -292,9 +307,23 @@ class YOLODetDataset(Dataset):
         logger.info(f"[{split}] Loaded {len(self.img_paths)} images")
 
     def __len__(self) -> int:
+        """Return the number of images in the dataset."""
         return len(self.img_paths)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """Get a single item from the dataset.
+
+        Args:
+            idx: Index of the item to retrieve.
+
+        Returns:
+            Tuple of (image, labels) where:
+                - image: Tensor of shape (3, img_size, img_size) with values in [0, 1].
+                - labels: Tensor of shape (N, 5) with columns [class, cx, cy, w, h].
+
+        Raises:
+            ValueError: If image fails to load.
+        """
         img_path = self.img_paths[idx]
 
         img = cv2.imread(str(img_path))
