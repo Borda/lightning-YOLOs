@@ -71,3 +71,15 @@ line-ending = "auto"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP"]
 ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--doctest-modules",
+    "--doctest-continue-on-failure",
+    "-v",
+    "--color=yes",
+]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
