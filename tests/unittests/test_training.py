@@ -11,7 +11,6 @@ class TestTrain:
     def test_train_function_exists(self):
         """Test that train function exists and is callable."""
         assert callable(train)
-        
     def test_train_signature(self):
         """Test train function has expected parameters."""
         import inspect
