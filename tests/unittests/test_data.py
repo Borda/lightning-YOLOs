@@ -99,7 +99,7 @@ def mixed_format_dataset(obb_dataset_dir, create_test_image):
 
     # Standard detection format
     label1_path = obb_dataset_dir / "labels" / "train" / "test_standard.txt"
-    with open(label1_path, "w") as f:
+    with open(label1_path, "w", encoding="utf_8") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
 
     # OBB format
