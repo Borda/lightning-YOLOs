@@ -19,7 +19,16 @@ logger = logging.getLogger(__name__)
 
 
 class LitYOLOOBB(pl.LightningModule):
-    """Lightning module for YOLO-OBB training with TorchMetrics."""
+    """Lightning module for YOLO-OBB training with TorchMetrics.
+    
+    Examples:
+        >>> # Example instantiation (requires ultralytics YOLO model)
+        >>> # model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=15)
+        >>> # Check the model has required methods
+        >>> import inspect
+        >>> hasattr(LitYOLOOBB, 'forward') and hasattr(LitYOLOOBB, 'training_step')
+        True
+    """
 
     def __init__(
         self,

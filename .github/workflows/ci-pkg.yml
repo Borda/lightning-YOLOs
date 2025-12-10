@@ -26,7 +26,11 @@ jobs:
       - name: Install package
         run: |
           pip install --upgrade pip
-          pip install . --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install .[dev] --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Validate package import and version
         run: python -c "import lit_yolo; print(lit_yolo.__version__)"
+      
+      - name: Run tests with pytest
+        run: |
+          pytest tests/ src/ --doctest-modules --doctest-continue-on-failure -v
