@@ -50,6 +50,39 @@ class TestCornersToXywhr:
         assert w > h
         assert abs(w - 0.4) < 0.01
 
+    def test_rotated_box(self):
+        """Test converting a rotated box with different dimensions."""
+        # Rotated rectangle (30 degrees) with distinct width and height
+        import math
+        
+        # Create a rectangle with width=0.3, height=0.1, rotated 30 degrees
+        width, height = 0.3, 0.1
+        angle_deg = 30
+        angle_rad = math.radians(angle_deg)
+        
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        
+        # Generate corners of rotated rectangle centered at (0.5, 0.5)
+        hw, hh = width / 2, height / 2
+        corners = np.array([
+            [0.5 + hw * cos_a - hh * sin_a, 0.5 + hw * sin_a + hh * cos_a],
+            [0.5 + hw * cos_a + hh * sin_a, 0.5 + hw * sin_a - hh * cos_a],
+            [0.5 - hw * cos_a + hh * sin_a, 0.5 - hw * sin_a - hh * cos_a],
+            [0.5 - hw * cos_a - hh * sin_a, 0.5 - hw * sin_a + hh * cos_a],
+        ], dtype=np.float32)
+        
+        cx, cy, w, h, angle = corners_to_xywhr(corners)
+        
+        # Check center is approximately correct
+        assert abs(cx - 0.5) < 0.01
+        assert abs(cy - 0.5) < 0.01
+        # Check dimensions (w should be larger)
+        assert abs(w - width) < 0.01
+        assert abs(h - height) < 0.01
+        # Angle should be non-zero for rotated box
+        assert 0 < angle < math.pi / 2
+
 
 class TestObbToXyxy:
     """Tests for obb_to_xyxy function."""
@@ -92,3 +125,26 @@ class TestObbToXyxy:
         assert result.shape == (1, 4)
         assert abs(result[0, 0].item() - 0.8) < 0.02
         assert abs(result[0, 2].item() - 1.2) < 0.02
+
+    def test_rotated_box(self):
+        """Test conversion of rotated OBB to xyxy."""
+        import math
+        
+        # Box centered at (0.5, 0.5), size 0.2x0.1, rotated 45 degrees
+        angle_45 = math.pi / 4
+        obb = torch.tensor([[0.5, 0.5, 0.2, 0.1, angle_45]])
+        result = obb_to_xyxy(obb, scale=1.0)
+        
+        assert result.shape == (1, 4)
+        # For a rotated box, the axis-aligned bounding box should be larger
+        # than the original box dimensions
+        width = result[0, 2].item() - result[0, 0].item()
+        height = result[0, 3].item() - result[0, 1].item()
+        
+        # The bounding box should contain the rotated box
+        # For 45-degree rotation, diagonal becomes the new extent
+        expected_extent = math.sqrt(0.2**2 + 0.1**2)
+        assert width > 0.1  # Larger than original height
+        assert height > 0.1  # Larger than original height
+        assert width < 0.3  # But not unreasonably large
+        assert height < 0.3
