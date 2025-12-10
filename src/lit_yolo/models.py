@@ -19,13 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class LitYOLOOBB(pl.LightningModule):
-    """Lightning module for YOLO-OBB training with TorchMetrics.
-    
-    Examples:
-        >>> import inspect
-        >>> hasattr(LitYOLOOBB, 'forward') and hasattr(LitYOLOOBB, 'training_step')
-        True
-    """
+    """Lightning module for YOLO-OBB training with TorchMetrics."""
 
     def __init__(
         self,

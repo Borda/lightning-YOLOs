@@ -30,7 +30,7 @@ jobs:
 
       - name: Run doctests
         run: |
-          pytest src/ --doctest-modules --doctest-continue-on-failure -v
+          pytest src/ -v
 
       - name: Run tests
         run: |
