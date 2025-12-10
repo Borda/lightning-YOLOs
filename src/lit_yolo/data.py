@@ -33,11 +33,6 @@ def detect_num_classes(root: Path) -> int:
     
     Raises:
         ValueError: If no valid labels found in the directory.
-    
-    Note:
-        Example usage requires actual data files:
-        >>> from pathlib import Path
-        >>> # num_classes = detect_num_classes(Path("/path/to/dataset"))
     """
     max_class, files_scanned = -1, 0
     for split in ["train", "val"]:
@@ -148,14 +143,7 @@ def obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
 
 
 class YOLOOBBDataset(Dataset):
-    """Dataset for YOLO OBB format (4-corner annotations).
-    
-    Note:
-        Example usage requires actual data directory:
-        >>> from pathlib import Path
-        >>> # dataset = YOLOOBBDataset(Path("/path/to/data"), "train", img_size=640, num_classes=15)
-        >>> # print(len(dataset))
-    """
+    """Dataset for YOLO OBB format (4-corner annotations)."""
 
     FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
@@ -237,15 +225,7 @@ class YOLOOBBDataset(Dataset):
 
 
 class OBBDataModule(pl.LightningDataModule):
-    """Lightning DataModule for OBB datasets - handles all data setup.
-    
-    Note:
-        Example usage requires actual data directory:
-        >>> from pathlib import Path
-        >>> # dm = OBBDataModule(data="/path/to/data", img_size=640, batch_size=8)
-        >>> # dm.setup()
-        >>> # train_loader = dm.train_dataloader()
-    """
+    """Lightning DataModule for OBB datasets - handles all data setup."""
 
     def __init__(self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None):
         super().__init__()

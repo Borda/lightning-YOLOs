@@ -1,4 +1,4 @@
-"""Tests for instantiating classes without data."""
+"""Unit tests for lit_yolo.models module."""
 
 import inspect
 
@@ -9,8 +9,8 @@ import torch
 from lit_yolo.models import LitYOLOOBB
 
 
-class TestLitYOLOOBBInstantiation:
-    """Tests for LitYOLOOBB model instantiation."""
+class TestLitYOLOOBB:
+    """Tests for LitYOLOOBB model."""
 
     def test_instantiate_default(self):
         """Test instantiating model with default parameters."""

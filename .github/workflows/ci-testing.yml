@@ -1,0 +1,42 @@
+name: CI Testing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install .[dev] --extra-index-url https://download.pytorch.org/whl/cpu
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unittests/ -v --tb=short
+
+      - name: Run doctests
+        run: |
+          pytest src/ --doctest-modules --doctest-continue-on-failure -v
+
+      - name: Run integration tests
+        run: |
+          pytest tests/integrations/ -v --tb=short
+        continue-on-error: true

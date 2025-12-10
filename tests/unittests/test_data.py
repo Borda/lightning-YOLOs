@@ -1,4 +1,4 @@
-"""Tests for utility functions in lit_yolo.data module."""
+"""Unit tests for lit_yolo.data module."""
 
 import numpy as np
 import pytest
