@@ -8,19 +8,18 @@ Lightning-YOLOs is a YOLO-OBB (Oriented Bounding Box) training framework built w
 
 - PyTorch Lightning (>=2.0.0, <2.6.0)
 - Ultralytics YOLO (licensed under AGPL-3.0)
-- TorchMetrics for detection metrics
+- TorchMetrics with detection extras (required for mAP metrics)
 - jsonargparse for CLI configuration
 
 **Project Structure:**
 
-```
-src/lit_yolo/
-├── __init__.py      # Package initialization and exports
-├── __main__.py      # CLI entry point
-├── data.py          # Dataset, DataModule, and data utilities
-├── models.py        # LitYOLOOBB Lightning module
-└── training.py      # Training orchestration function
-```
+The main package is located in `src/lit_yolo/` with a modular architecture:
+
+- Core modules for data loading, model definitions, and training orchestration
+- CLI entry point via `__main__.py`
+- Package exports through `__init__.py`
+
+Check the actual directory for the current module organization as it may evolve with subpackages.
 
 ## Python Version & Dependencies
 
@@ -67,12 +66,7 @@ pre-commit run --all-files
 
 ### Test Structure
 
-```
-tests/
-├── __init__.py
-├── integrations/    # Integration tests
-└── unittests/       # Unit tests
-```
+Tests are organized in the `tests/` directory with separate subdirectories for unit tests and integration tests. Check the directory structure for the current organization.
 
 ### Running Tests
 
@@ -100,10 +94,12 @@ pytest src/
 - Test functions: `test_*`
 - Test classes: `Test*`
 
-### Writing Tests
+### Writing Tests (Required)
 
-- Write unit tests for new features
-- Maintain test coverage
+All code changes must include appropriate tests:
+
+- Write unit tests for new features (required)
+- Maintain or improve test coverage
 - Use descriptive test names that explain what is being tested
 - Follow existing test patterns in the repository
 - Test both success and error conditions
@@ -280,3 +276,7 @@ When contributing, preserve these core features:
 - Leverage AMP (Automatic Mixed Precision) - already enabled
 - Consider batch size and learning rate adjustments
 - Profile with: `trainer = Trainer(profiler="simple")`
+
+## Related Documentation
+
+For agent-specific configurations and automated workflow management, see [Agent HQ Configuration](.github/agents/AGENTS.md).
