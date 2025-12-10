@@ -16,7 +16,7 @@ from lit_yolo.data import (
     xywh_to_xyxy,
 )
 from lit_yolo.models import LitYOLODet, LitYOLOOBB
-from lit_yolo.training import train, train_detect
+from lit_yolo.training import train_detect, train_obb
 
 __all__ = [
     "DetDataModule",
@@ -29,7 +29,7 @@ __all__ = [
     "detect_num_classes",
     "obb_to_xyxy",
     "xywh_to_xyxy",
-    "train",
+    "train_obb",
     "train_detect",
 ]
 

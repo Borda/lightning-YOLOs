@@ -18,20 +18,20 @@ pip install .
 
 ```bash
 # Run standard detection training with CLI
-python -m lit_yolo train-detect --data /path/to/dataset --model yolo11n.pt
+python -m lit_yolo train detect --data /path/to/dataset --model yolo11n.pt
 
 # Or use the installed command
-lit-yolo train-detect --data /path/to/dataset --model yolo11n.pt
+lit-yolo train detect --data /path/to/dataset --model yolo11n.pt
 ```
 
 ### Oriented Bounding Box Detection (OBB)
 
 ```bash
 # Run OBB training with CLI
-python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
+python -m lit_yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
 
 # Or use the installed command
-lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt
+lit-yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
 ```
 
 ## Dataset Format

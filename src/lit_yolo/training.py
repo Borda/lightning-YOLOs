@@ -15,7 +15,7 @@ from lit_yolo.models import LitYOLODet, LitYOLOOBB
 logger = logging.getLogger(__name__)
 
 
-def train(
+def train_obb(
     data: str,
     model: str = "yolo11n-obb.pt",
     epochs: int = 100,

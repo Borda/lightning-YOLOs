@@ -31,16 +31,16 @@ Run standard detection training using the CLI:
 
 ```bash
 # Using python -m (works without installation)
-python -m lit_yolo train-detect --data /path/to/dataset --model yolo11n.pt
+python -m lit_yolo train detect --data /path/to/dataset --model yolo11n.pt
 
 # Using the installed command (after pip install)
-lit-yolo train-detect --data /path/to/dataset --model yolo11n.pt
+lit-yolo train detect --data /path/to/dataset --model yolo11n.pt
 
 # With a config file
-lit-yolo train-detect --config config.yaml
+lit-yolo train detect --config config.yaml
 
 # With custom parameters
-lit-yolo train-detect --data /path/to/dataset --model yolo11n.pt --epochs 50 --batch_size 16
+lit-yolo train detect --data /path/to/dataset --model yolo11n.pt --epochs 50 --batch_size 16
 ```
 
 #### Oriented Bounding Box (OBB) Detection
@@ -49,16 +49,16 @@ Run OBB training using the CLI:
 
 ```bash
 # Using python -m (works without installation)
-python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
+python -m lit_yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
 
 # Using the installed command (after pip install)
-lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt
+lit-yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
 
 # With a config file
-lit-yolo train --config config.yaml
+lit-yolo train obb --config config.yaml
 
 # With custom parameters
-lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size 16
+lit-yolo train obb --data /path/to/dataset --model yolo11n-obb.pt --epochs 50 --batch_size 16
 ```
 
 ### Python API
@@ -92,10 +92,10 @@ trainer.fit(model, datamodule=dm)
 #### Oriented Bounding Box (OBB) Detection
 
 ```python
-from lit_yolo import train, LitYOLOOBB, OBBDataModule
+from lit_yolo import train_obb, LitYOLOOBB, OBBDataModule
 
 # Train using the function
-train(
+train_obb(
     data="/path/to/dataset",
     model="yolo11n-obb.pt",
     epochs=100,
@@ -127,7 +127,7 @@ src/lit_yolo/
 │                      - LitYOLOOBB (OBB detection)
 └── training.py      # Training functions
                        - train_detect (standard detection)
-                       - train (OBB detection)
+                       - train_obb (OBB detection)
 ```
 
 ## Dataset Format
