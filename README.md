@@ -1,6 +1,6 @@
 # lightning-YOLOs
 
-YOLO-OBB Training with PyTorch Lightning
+YOLO Training with PyTorch Lightning - supports both OBB (Oriented Bounding Box) and standard object detection
 
 ## Installation
 
@@ -14,15 +14,42 @@ pip install .
 
 ## Quick Start
 
+### Standard Object Detection
+
 ```bash
-# Run training with CLI
+# Run standard detection training with CLI
+python -m lit_yolo train-detect --data /path/to/dataset --model yolo11n.pt
+
+# Or use the installed command
+lit-yolo train-detect --data /path/to/dataset --model yolo11n.pt
+```
+
+### Oriented Bounding Box Detection (OBB)
+
+```bash
+# Run OBB training with CLI
 python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
 
 # Or use the installed command
 lit-yolo train --data /path/to/dataset --model yolo11n-obb.pt
 ```
 
-## Example: Download DOTA v1.5 dataset
+## Dataset Format
+
+### Standard Detection Format
+For standard object detection, labels should be in YOLO format:
+```
+class x_center y_center width height
+```
+All values are normalized (0-1).
+
+### OBB Format
+For oriented bounding box detection, labels should contain 4 corner points:
+```
+class x1 y1 x2 y2 x3 y3 x4 y4
+```
+
+## Example: Download DOTA v1.5 dataset (OBB)
 
 ```bash
 wget https://www.ultralytics.com/assets/DOTAv1.5.zip
