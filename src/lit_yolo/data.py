@@ -34,9 +34,9 @@ def detect_num_classes(root: Path) -> int:
     Raises:
         ValueError: If no valid labels found in the directory.
     
-    Examples:
+    Note:
+        Example usage requires actual data files:
         >>> from pathlib import Path
-        >>> # Example would require actual data files
         >>> # num_classes = detect_num_classes(Path("/path/to/dataset"))
     """
     max_class, files_scanned = -1, 0
@@ -150,9 +150,9 @@ def obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
 class YOLOOBBDataset(Dataset):
     """Dataset for YOLO OBB format (4-corner annotations).
     
-    Examples:
+    Note:
+        Example usage requires actual data directory:
         >>> from pathlib import Path
-        >>> # Example instantiation (requires actual data directory)
         >>> # dataset = YOLOOBBDataset(Path("/path/to/data"), "train", img_size=640, num_classes=15)
         >>> # print(len(dataset))
     """
@@ -239,9 +239,9 @@ class YOLOOBBDataset(Dataset):
 class OBBDataModule(pl.LightningDataModule):
     """Lightning DataModule for OBB datasets - handles all data setup.
     
-    Examples:
+    Note:
+        Example usage requires actual data directory:
         >>> from pathlib import Path
-        >>> # Example instantiation
         >>> # dm = OBBDataModule(data="/path/to/data", img_size=640, batch_size=8)
         >>> # dm.setup()
         >>> # train_loader = dm.train_dataloader()

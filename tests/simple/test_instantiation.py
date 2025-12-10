@@ -1,6 +1,9 @@
 """Tests for instantiating classes without data."""
 
+import inspect
+
 import pytest
+import pytorch_lightning as pl
 import torch
 
 from lit_yolo.models import LitYOLOOBB
@@ -22,13 +25,11 @@ class TestLitYOLOOBBInstantiation:
 
     def test_class_is_lightning_module(self):
         """Test that LitYOLOOBB is a PyTorch Lightning module."""
-        import pytorch_lightning as pl
         assert issubclass(LitYOLOOBB, pl.LightningModule)
 
     def test_default_hyperparameters(self):
         """Test that default hyperparameters are sensible."""
         # Test we can inspect the __init__ signature
-        import inspect
         sig = inspect.signature(LitYOLOOBB.__init__)
         
         # Check expected parameters exist
