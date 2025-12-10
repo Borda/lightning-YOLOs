@@ -83,6 +83,23 @@ src/lit_yolo/
 - ✅ Auto class detection from dataset
 - ✅ PyTorch Lightning integration
 - ✅ Modular package structure
+- ✅ **Standard detection format support** (for debugging and CI testing)
+
+### Dataset Format Support
+
+The OBB dataset loader now supports both formats:
+
+1. **OBB Format** (9 values per line): `class x1 y1 x2 y2 x3 y3 x4 y4`
+   - Recommended for production training with oriented bounding boxes
+   - Provides full rotation information
+
+2. **Standard Detection Format** (5 values per line): `class x y w h`
+   - Useful for debugging convergence with simpler datasets
+   - Enables CI testing with tiny datasets
+   - Rotation is automatically set to 0
+   - A warning is logged when this format is detected
+
+Both formats can coexist in the same project (e.g., different splits can use different formats).
 
 ## Migration from Original File
 
