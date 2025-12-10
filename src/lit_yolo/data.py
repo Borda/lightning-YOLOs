@@ -102,6 +102,7 @@ class YOLOOBBDataset(Dataset):
         self.img_size, self.num_classes = img_size, num_classes
         self.img_dir = root / "images" / split
         self.label_dir = root / "labels" / split
+        self._standard_format_warned = False  # Track if warning has been logged
 
         if not self.img_dir.exists():
             raise FileNotFoundError(f"Image directory not found: {self.img_dir}")
@@ -140,13 +141,13 @@ class YOLOOBBDataset(Dataset):
             return torch.zeros((0, 6), dtype=torch.float32)
 
         labels = []
-        is_standard_detection = False
+        has_standard_detection = False
         with open(path) as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) == 5:
                     # Standard detection format: class x y w h (no rotation)
-                    is_standard_detection = True
+                    has_standard_detection = True
                     try:
                         cls = int(parts[0])
                         if not (0 <= cls < self.num_classes):
@@ -170,12 +171,14 @@ class YOLOOBBDataset(Dataset):
                     # Skip invalid formats
                     continue
 
-        if is_standard_detection and labels:
+        # Log warning only once per dataset to avoid log noise
+        if has_standard_detection and labels and not self._standard_format_warned:
             logger.warning(
-                f"Standard detection format detected in {path.name}. "
+                "Standard detection format detected. "
                 "Using axis-aligned bounding boxes with rotation set to 0. "
                 "For optimal OBB training, please provide annotations in OBB format (8 corner coordinates)."
             )
+            self._standard_format_warned = True
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
