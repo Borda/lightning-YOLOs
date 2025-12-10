@@ -1,7 +1,9 @@
 """Unit tests for lit_yolo.data module."""
 
-import numpy as np
+import math
 
+import numpy as np
+import pytest
 import torch
 
 from lit_yolo.data import corners_to_xywhr, obb_to_xyxy
@@ -50,14 +52,11 @@ class TestCornersToXywhr:
         assert w > h
         assert abs(w - 0.4) < 0.01
 
-    def test_rotated_box(self):
+    @pytest.mark.parametrize("angle_deg", [15, 30, 45, 60])
+    def test_rotated_box(self, angle_deg):
         """Test converting a rotated box with different dimensions."""
-        # Rotated rectangle (30 degrees) with distinct width and height
-        import math
-        
-        # Create a rectangle with width=0.3, height=0.1, rotated 30 degrees
+        # Create a rectangle with width=0.3, height=0.1, rotated by angle_deg
         width, height = 0.3, 0.1
-        angle_deg = 30
         angle_rad = math.radians(angle_deg)
         
         cos_a = math.cos(angle_rad)
@@ -126,13 +125,12 @@ class TestObbToXyxy:
         assert abs(result[0, 0].item() - 0.8) < 0.02
         assert abs(result[0, 2].item() - 1.2) < 0.02
 
-    def test_rotated_box(self):
+    @pytest.mark.parametrize("angle_deg", [15, 30, 45, 60])
+    def test_rotated_box(self, angle_deg):
         """Test conversion of rotated OBB to xyxy."""
-        import math
-        
-        # Box centered at (0.5, 0.5), size 0.2x0.1, rotated 45 degrees
-        angle_45 = math.pi / 4
-        obb = torch.tensor([[0.5, 0.5, 0.2, 0.1, angle_45]])
+        # Box centered at (0.5, 0.5), size 0.2x0.1, rotated by angle_deg
+        angle_rad = math.radians(angle_deg)
+        obb = torch.tensor([[0.5, 0.5, 0.2, 0.1, angle_rad]])
         result = obb_to_xyxy(obb, scale=1.0)
         
         assert result.shape == (1, 4)
@@ -142,8 +140,6 @@ class TestObbToXyxy:
         height = result[0, 3].item() - result[0, 1].item()
         
         # The bounding box should contain the rotated box
-        # For 45-degree rotation, diagonal becomes the new extent
-        expected_extent = math.sqrt(0.2**2 + 0.1**2)
         assert width > 0.1  # Larger than original height
         assert height > 0.1  # Larger than original height
         assert width < 0.3  # But not unreasonably large
