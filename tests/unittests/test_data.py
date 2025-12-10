@@ -1,12 +1,16 @@
 """Unit tests for lit_yolo.data module."""
 
+import logging
 import math
+import tempfile
+from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 import torch
 
-from lit_yolo.data import corners_to_xywhr, obb_to_xyxy, xywh_to_xyxy
+from lit_yolo.data import YOLOOBBDataset, corners_to_xywhr, obb_to_xyxy, xywh_to_xyxy
 
 
 class TestCornersToXywhr:
@@ -274,3 +278,223 @@ class TestXywhToXyxy:
         assert abs(result[0, 1].item() - 240) < 1
         assert abs(result[0, 2].item() - 480) < 1
         assert abs(result[0, 3].item() - 400) < 1
+
+
+class TestYOLOOBBDataset:
+    """Tests for YOLOOBBDataset class."""
+
+    @pytest.fixture
+    def temp_dataset_dir(self):
+        """Create a temporary dataset directory structure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            # Create directory structure
+            (root / "images" / "train").mkdir(parents=True)
+            (root / "labels" / "train").mkdir(parents=True)
+            yield root
+
+    def _create_test_image(self, img_path: Path):
+        """Create a dummy test image."""
+        img = np.ones((640, 640, 3), dtype=np.uint8) * 128
+        cv2.imwrite(str(img_path), img)
+
+    def test_load_standard_detection_format(self, temp_dataset_dir):
+        """Test loading standard detection format (5 values: class x y w h)."""
+        # Create test image
+        img_path = temp_dataset_dir / "images" / "train" / "test1.jpg"
+        self._create_test_image(img_path)
+
+        # Create label file with standard detection format
+        label_path = temp_dataset_dir / "labels" / "train" / "test1.txt"
+        with open(label_path, "w") as f:
+            f.write("0 0.5 0.5 0.3 0.4\n")
+            f.write("1 0.3 0.3 0.2 0.2\n")
+
+        # Load dataset
+        dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+
+        # Get first item
+        img_tensor, labels = dataset[0]
+
+        # Verify image shape
+        assert img_tensor.shape == (3, 640, 640)
+        assert img_tensor.dtype == torch.float32
+
+        # Verify labels shape and content
+        assert labels.shape == (2, 6)  # 2 boxes, 6 values each (cls, x, y, w, h, angle)
+
+        # Check that rotation is 0 for standard detection format
+        assert labels[0, 5].item() == 0.0  # First box rotation
+        assert labels[1, 5].item() == 0.0  # Second box rotation
+
+        # Check class labels
+        assert labels[0, 0].item() == 0.0
+        assert labels[1, 0].item() == 1.0
+
+    def test_load_obb_format(self, temp_dataset_dir):
+        """Test loading OBB format (9 values: class + 8 corner coordinates)."""
+        # Create test image
+        img_path = temp_dataset_dir / "images" / "train" / "test2.jpg"
+        self._create_test_image(img_path)
+
+        # Create label file with OBB format (rectangle corners)
+        label_path = temp_dataset_dir / "labels" / "train" / "test2.txt"
+        with open(label_path, "w") as f:
+            # Simple axis-aligned rectangle
+            f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
+
+        # Load dataset
+        dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+
+        # Get first item
+        img_tensor, labels = dataset[0]
+
+        # Verify labels shape
+        assert labels.shape == (1, 6)  # 1 box, 6 values
+
+        # Check class label
+        assert labels[0, 0].item() == 0.0
+
+        # For axis-aligned rectangle, rotation should be close to 0
+        assert abs(labels[0, 5].item()) < 0.1
+
+    def test_standard_detection_warning_raised(self, temp_dataset_dir, caplog):
+        """Test that warning is raised when standard detection format is detected."""
+        # Create test image
+        img_path = temp_dataset_dir / "images" / "train" / "test3.jpg"
+        self._create_test_image(img_path)
+
+        # Create label file with standard detection format
+        label_path = temp_dataset_dir / "labels" / "train" / "test3.txt"
+        with open(label_path, "w") as f:
+            f.write("0 0.5 0.5 0.3 0.4\n")
+
+        # Set log level to capture warnings
+        with caplog.at_level(logging.WARNING):
+            dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+            # Load first item to trigger warning
+            _, _ = dataset[0]
+
+        # Check that warning was logged
+        assert any("Standard detection format detected" in record.message for record in caplog.records)
+        assert any("rotation set to 0" in record.message for record in caplog.records)
+
+    def test_standard_detection_warning_only_once(self, temp_dataset_dir, caplog):
+        """Test that warning is only raised once per dataset instance."""
+        # Create multiple test images with standard detection format
+        for i in range(3):
+            img_path = temp_dataset_dir / "images" / "train" / f"test{i}.jpg"
+            self._create_test_image(img_path)
+
+            label_path = temp_dataset_dir / "labels" / "train" / f"test{i}.txt"
+            with open(label_path, "w") as f:
+                f.write(f"{i % 2} 0.5 0.5 0.3 0.4\n")
+
+        # Set log level to capture warnings
+        with caplog.at_level(logging.WARNING):
+            dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+
+            # Load all items
+            for i in range(len(dataset)):
+                _, _ = dataset[i]
+
+        # Count warning occurrences
+        warning_count = sum(
+            1 for record in caplog.records if "Standard detection format detected" in record.message
+        )
+
+        # Warning should be logged exactly once
+        assert warning_count == 1
+
+    def test_mixed_format_handling(self, temp_dataset_dir):
+        """Test that dataset can handle files without both formats mixed in same label file."""
+        # Create test images
+        img1_path = temp_dataset_dir / "images" / "train" / "test_standard.jpg"
+        img2_path = temp_dataset_dir / "images" / "train" / "test_obb.jpg"
+        self._create_test_image(img1_path)
+        self._create_test_image(img2_path)
+
+        # Standard detection format
+        label1_path = temp_dataset_dir / "labels" / "train" / "test_standard.txt"
+        with open(label1_path, "w") as f:
+            f.write("0 0.5 0.5 0.3 0.4\n")
+
+        # OBB format
+        label2_path = temp_dataset_dir / "labels" / "train" / "test_obb.txt"
+        with open(label2_path, "w") as f:
+            f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
+
+        # Load dataset
+        dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+
+        # Both images should load successfully
+        assert len(dataset) == 2
+
+        # Load both items
+        _, labels1 = dataset[0]
+        _, labels2 = dataset[1]
+
+        # Both should have valid labels
+        assert labels1.shape[0] > 0
+        assert labels2.shape[0] > 0
+
+    def test_invalid_format_handling(self, temp_dataset_dir, caplog):
+        """Test that invalid label lines are skipped with debug warnings."""
+        # Create test image
+        img_path = temp_dataset_dir / "images" / "train" / "test_invalid.jpg"
+        self._create_test_image(img_path)
+
+        # Create label file with mixed valid and invalid lines
+        label_path = temp_dataset_dir / "labels" / "train" / "test_invalid.txt"
+        with open(label_path, "w") as f:
+            f.write("0 0.5 0.5 0.3 0.4\n")  # Valid standard detection
+            f.write("invalid line\n")  # Invalid
+            f.write("abc 0.5 0.5 0.3 0.4\n")  # Invalid - non-numeric class
+            f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")  # Valid OBB
+            f.write("1 a b c d e f g h\n")  # Invalid - non-numeric coords
+
+        # Set log level to capture debug messages
+        with caplog.at_level(logging.DEBUG):
+            dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+            _, labels = dataset[0]
+
+        # Should have 2 valid labels (1 standard + 1 OBB)
+        assert labels.shape[0] == 2
+
+        # Check that debug warnings were logged for invalid lines
+        debug_messages = [record.message for record in caplog.records if record.levelname == "DEBUG"]
+        assert any("Skipping invalid line" in msg for msg in debug_messages)
+
+    def test_empty_label_file(self, temp_dataset_dir):
+        """Test handling of empty label files."""
+        # Create test image
+        img_path = temp_dataset_dir / "images" / "train" / "test_empty.jpg"
+        self._create_test_image(img_path)
+
+        # Create empty label file
+        label_path = temp_dataset_dir / "labels" / "train" / "test_empty.txt"
+        label_path.touch()
+
+        # Load dataset
+        dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+
+        # Get item - should return empty labels
+        _, labels = dataset[0]
+
+        # Should have zero labels
+        assert labels.shape == (0, 6)
+
+    def test_missing_label_file(self, temp_dataset_dir):
+        """Test handling of missing label files."""
+        # Create test image without corresponding label
+        img_path = temp_dataset_dir / "images" / "train" / "test_no_label.jpg"
+        self._create_test_image(img_path)
+
+        # Load dataset
+        dataset = YOLOOBBDataset(temp_dataset_dir, "train", img_size=640, num_classes=2)
+
+        # Get item - should return empty labels
+        _, labels = dataset[0]
+
+        # Should have zero labels
+        assert labels.shape == (0, 6)
