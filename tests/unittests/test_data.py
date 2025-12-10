@@ -57,7 +57,7 @@ def standard_detection_dataset(obb_dataset_dir, create_test_image):
 
     # Create label file with standard detection format
     label_path = obb_dataset_dir / "labels" / "train" / "test1.txt"
-    with open(label_path, "w") as f:
+    with open(label_path, "w", encoding="utf_8") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
         f.write("1 0.3 0.3 0.2 0.2\n")
 
@@ -79,12 +79,12 @@ def mixed_format_dataset(obb_dataset_dir, create_test_image):
 
     # Standard detection format
     label1_path = obb_dataset_dir / "labels" / "train" / "test_standard.txt"
-    with open(label1_path, "w") as f:
+    with open(label1_path, "w", encoding="utf_8") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
 
     # OBB format
     label2_path = obb_dataset_dir / "labels" / "train" / "test_obb.txt"
-    with open(label2_path, "w") as f:
+    with open(label2_path, "w", encoding="utf_8") as f:
         f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
 
     return obb_dataset_dir
@@ -391,7 +391,7 @@ class TestYOLOOBBDataset:
 
         # Create label file with OBB format (rectangle corners)
         label_path = obb_dataset_dir / "labels" / "train" / "test2.txt"
-        with open(label_path, "w") as f:
+        with open(label_path, "w", encoding="utf_8") as f:
             # Simple axis-aligned rectangle
             f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
 
@@ -418,7 +418,7 @@ class TestYOLOOBBDataset:
 
         # Create label file with standard detection format
         label_path = obb_dataset_dir / "labels" / "train" / "test3.txt"
-        with open(label_path, "w") as f:
+        with open(label_path, "w", encoding="utf_8") as f:
             f.write("0 0.5 0.5 0.3 0.4\n")
 
         # Set log level to capture warnings
@@ -439,7 +439,7 @@ class TestYOLOOBBDataset:
             create_test_image(img_path)
 
             label_path = obb_dataset_dir / "labels" / "train" / f"test{i}.txt"
-            with open(label_path, "w") as f:
+            with open(label_path, "w", encoding="utf_8") as f:
                 f.write(f"{i % 2} 0.5 0.5 0.3 0.4\n")
 
         # Set log level to capture warnings
@@ -482,7 +482,7 @@ class TestYOLOOBBDataset:
 
         # Create label file with mixed valid and invalid lines
         label_path = obb_dataset_dir / "labels" / "train" / "test_invalid.txt"
-        with open(label_path, "w") as f:
+        with open(label_path, "w", encoding="utf_8") as f:
             f.write("0 0.5 0.5 0.3 0.4\n")  # Valid standard detection
             f.write("invalid line\n")  # Invalid
             f.write("abc 0.5 0.5 0.3 0.4\n")  # Invalid - non-numeric class
