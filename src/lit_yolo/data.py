@@ -210,7 +210,7 @@ class YOLOOBBDataset(Dataset):
 
         img = cv2.imread(str(img_path))
         if img is None:
-            raise ValueError(f"Failed to load: {img_path}")
+            raise IndexError(f"Failed to load: {img_path}")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         orig_h, orig_w = img.shape[:2]
 
@@ -322,13 +322,13 @@ class YOLODetDataset(Dataset):
                 - labels: Tensor of shape (N, 5) with columns [class, cx, cy, w, h].
 
         Raises:
-            ValueError: If image fails to load.
+            IndexError: If image fails to load.
         """
         img_path = self.img_paths[idx]
 
         img = cv2.imread(str(img_path))
         if img is None:
-            raise ValueError(f"Failed to load: {img_path}")
+            raise IndexError(f"Failed to load: {img_path}")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         orig_h, orig_w = img.shape[:2]
 
