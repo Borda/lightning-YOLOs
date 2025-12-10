@@ -276,4 +276,4 @@ When contributing, preserve these core features:
 
 ## Related Documentation
 
-For agent-specific configurations and automated workflow management, see [Agent HQ Configuration](.github/agents/AGENTS.md).
+For agent-specific configurations and automated workflow management, see [Agent HQ Configuration](agents/AGENTS.md).
