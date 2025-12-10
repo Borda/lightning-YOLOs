@@ -9,7 +9,6 @@ from typing import Any
 
 import cv2
 import numpy as np
-import pytorch_lightning as pl
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
@@ -235,36 +234,35 @@ class YOLOOBBDataset(Dataset):
         labels = []
         has_standard_detection = False
         with open(path) as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) == 5:
-                    # Standard detection format: class x y w h (no rotation)
-                    has_standard_detection = True
-                    try:
-                        cls = int(parts[0])
-                        if not (0 <= cls < self.num_classes):
-                            continue
-                        x, y, w, h = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
-                        # Append with rotation = 0
-                        labels.append([cls, x, y, w, h, 0.0])
-                    except ValueError:
+            lines = f.readlines()
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) == 5:
+                # Standard detection format: class x y w h (no rotation)
+                has_standard_detection = True
+                try:
+                    cls = int(parts[0])
+                    if not (0 <= cls < self.num_classes):
                         continue
-                elif len(parts) == 9:
-                    # OBB format: class + 8 corner coordinates
-                    try:
-                        cls = int(parts[0])
-                        if not (0 <= cls < self.num_classes):
-                            continue
-                        corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                        labels.append([cls, *corners_to_xywhr(corners)])
-                    except ValueError:
-                        continue
-                else:
-                    # Skip invalid formats
+                    x, y, w, h = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+                    # Append with rotation = 0
+                    labels.append([cls, x, y, w, h, 0.0])
+                except ValueError as e:
+                    logger.debug(f"Skipping invalid line in {path}: {e}")
                     continue
-                labels.append([cls, *corners_to_xywhr(corners)])
-            except ValueError as e:
-                logger.debug(f"Skipping invalid line in {path}: {e}")
+            elif len(parts) == 9:
+                # OBB format: class + 8 corner coordinates
+                try:
+                    cls = int(parts[0])
+                    if not (0 <= cls < self.num_classes):
+                        continue
+                    corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
+                    labels.append([cls, *corners_to_xywhr(corners)])
+                except ValueError as e:
+                    logger.debug(f"Skipping invalid line in {path}: {e}")
+                    continue
+            else:
+                # Skip invalid formats
                 continue
 
         # Log warning only once per dataset to avoid log noise
