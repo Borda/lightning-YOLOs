@@ -6,7 +6,7 @@ Lightning-YOLOs is a YOLO-OBB (Oriented Bounding Box) training framework built w
 
 **Key Technologies:**
 
-- PyTorch Lightning (>=2.0.0, <2.6.0)
+- PyTorch Lightning (>=2.0.0, \<2.6.0)
 - Ultralytics YOLO (licensed under AGPL-3.0)
 - TorchMetrics with detection extras (required for mAP metrics)
 - jsonargparse for CLI configuration
@@ -153,12 +153,7 @@ python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
 
 ### Lightning Module Structure
 
-The `LitYOLOOBB` class in `models.py` follows PyTorch Lightning patterns:
-
-- `__init__`: Model initialization and hyperparameters
-- `training_step`: Training logic with loss computation
-- `validation_step`: Validation with mAP metrics
-- `configure_optimizers`: AdamW optimizer with linear warmup
+The `LitYOLOOBB` class in `models.py` follows standard PyTorch Lightning patterns with YOLO-OBB specific implementations for training and validation with mAP metrics.
 
 ### Data Module
 
