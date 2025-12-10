@@ -233,7 +233,7 @@ Before submitting a PR, ensure:
 - **Project License**: GNU General Public License v3.0 (GPL-3.0)
 - **Important**: Depends on Ultralytics (AGPL-3.0), which makes the combined work subject to AGPL-3.0 terms
 - Always include proper attribution when using or modifying the code
-- See `LICENSE` and `NOTICE` files for details
+- See `LICENSE` file for details
 
 ## Contributing
 
