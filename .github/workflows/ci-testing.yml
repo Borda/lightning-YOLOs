@@ -22,21 +22,16 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
           pip install .[dev] --extra-index-url https://download.pytorch.org/whl/cpu
-
-      - name: Run unit tests
-        run: |
-          pytest tests/unittests/ -v --tb=short
 
       - name: Run doctests
         run: |
           pytest src/ --doctest-modules --doctest-continue-on-failure -v
 
-      - name: Run integration tests
+      - name: Run tests
         run: |
-          pytest tests/integrations/ -v --tb=short
-        continue-on-error: true
+          pytest tests/ -v --tb=short
