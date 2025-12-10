@@ -21,6 +21,8 @@ The main package is located in `src/lit_yolo/` with a modular architecture:
 
 Check the actual directory for the current module organization as it may evolve with subpackages.
 
+> **Note:** When making structural changes to the project (adding/removing modules, reorganizing directories, changing workflows), remember to update all relevant documentation including this file, README.md, src/README.md, and AGENTS.md.
+
 ## Python Version & Dependencies
 
 - **Python**: >=3.10 (supports 3.10, 3.11, 3.12)
