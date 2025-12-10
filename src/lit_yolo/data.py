@@ -9,10 +9,9 @@ from typing import Any
 
 import cv2
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader, Dataset
-
-import pytorch_lightning as pl
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ def detect_num_classes(root: Path) -> int:
                         if parts:
                             max_class = max(max_class, int(parts[0]))
                 files_scanned += 1
-            except (ValueError, IOError):
+            except (OSError, ValueError):
                 continue
 
     if max_class < 0:
@@ -82,8 +81,9 @@ def obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     corners_x = cx[:, None] + dx * cos_a[:, None] - dy * sin_a[:, None]
     corners_y = cy[:, None] + dx * sin_a[:, None] + dy * cos_a[:, None]
 
-    return torch.stack([corners_x.min(1).values, corners_y.min(1).values,
-                        corners_x.max(1).values, corners_y.max(1).values], dim=1)
+    return torch.stack(
+        [corners_x.min(1).values, corners_y.min(1).values, corners_x.max(1).values, corners_y.max(1).values], dim=1
+    )
 
 
 # =============================================================================
@@ -140,19 +140,42 @@ class YOLOOBBDataset(Dataset):
             return torch.zeros((0, 6), dtype=torch.float32)
 
         labels = []
+        is_standard_detection = False
         with open(path) as f:
             for line in f:
                 parts = line.strip().split()
-                if len(parts) != 9:
-                    continue
-                try:
-                    cls = int(parts[0])
-                    if not (0 <= cls < self.num_classes):
+                if len(parts) == 5:
+                    # Standard detection format: class x y w h (no rotation)
+                    is_standard_detection = True
+                    try:
+                        cls = int(parts[0])
+                        if not (0 <= cls < self.num_classes):
+                            continue
+                        x, y, w, h = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+                        # Append with rotation = 0
+                        labels.append([cls, x, y, w, h, 0.0])
+                    except ValueError:
                         continue
-                    corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                    labels.append([cls, *corners_to_xywhr(corners)])
-                except ValueError:
+                elif len(parts) == 9:
+                    # OBB format: class + 8 corner coordinates
+                    try:
+                        cls = int(parts[0])
+                        if not (0 <= cls < self.num_classes):
+                            continue
+                        corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
+                        labels.append([cls, *corners_to_xywhr(corners)])
+                    except ValueError:
+                        continue
+                else:
+                    # Skip invalid formats
                     continue
+
+        if is_standard_detection and labels:
+            logger.warning(
+                f"Standard detection format detected in {path.name}. "
+                "Using axis-aligned bounding boxes with rotation set to 0. "
+                "For optimal OBB training, please provide annotations in OBB format (8 corner coordinates)."
+            )
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
@@ -164,7 +187,7 @@ class YOLOOBBDataset(Dataset):
 
         pad_w, pad_h = (self.img_size - new_w) // 2, (self.img_size - new_h) // 2
         img_padded = np.full((self.img_size, self.img_size, 3), 114, dtype=np.uint8)
-        img_padded[pad_h:pad_h + new_h, pad_w:pad_w + new_w] = img_resized
+        img_padded[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = img_resized
         return img_padded, scale, (pad_w, pad_h)
 
 
@@ -176,7 +199,9 @@ class YOLOOBBDataset(Dataset):
 class OBBDataModule(pl.LightningDataModule):
     """Lightning DataModule for OBB datasets - handles all data setup."""
 
-    def __init__(self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None):
+    def __init__(
+        self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None
+    ):
         super().__init__()
         self.data_root = Path(data)
         self.img_size = img_size
@@ -197,16 +222,25 @@ class OBBDataModule(pl.LightningDataModule):
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(
-            self.train_ds, batch_size=self.batch_size, shuffle=True,
-            num_workers=self.num_workers, pin_memory=True, drop_last=True,
-            collate_fn=self._collate, persistent_workers=self.num_workers > 0
+            self.train_ds,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            drop_last=True,
+            collate_fn=self._collate,
+            persistent_workers=self.num_workers > 0,
         )
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(
-            self.val_ds, batch_size=self.batch_size, shuffle=False,
-            num_workers=self.num_workers, pin_memory=True,
-            collate_fn=self._collate, persistent_workers=self.num_workers > 0
+            self.val_ds,
+            batch_size=self.batch_size,
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            collate_fn=self._collate,
+            persistent_workers=self.num_workers > 0,
         )
 
     @staticmethod
