@@ -146,6 +146,24 @@ def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
 
     Returns:
         Tensor of shape (N, 4) with [x1, y1, x2, y2] format
+
+    Examples:
+        >>> import torch
+        >>> # Empty input
+        >>> bbox = torch.empty((0, 4))
+        >>> result = xywh_to_xyxy(bbox)
+        >>> result.shape
+        torch.Size([0, 4])
+        >>> # Single box: center at (0.5, 0.5), size (0.2, 0.1)
+        >>> bbox = torch.tensor([[0.5, 0.5, 0.2, 0.1]])
+        >>> result = xywh_to_xyxy(bbox, scale=1.0)
+        >>> result
+        tensor([[0.4000, 0.4500, 0.6000, 0.5500]])
+        >>> # With scaling
+        >>> bbox = torch.tensor([[0.5, 0.5, 0.2, 0.1]])
+        >>> result = xywh_to_xyxy(bbox, scale=640.0)
+        >>> result
+        tensor([[256., 288., 384., 352.]])
     """
     if len(bbox) == 0:
         return torch.empty((0, 4), device=bbox.device)
@@ -224,9 +242,11 @@ class YOLOOBBDataset(Dataset):
                 if not (0 <= cls < self.num_classes):
                     continue
                 corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                # Check that coordinates are already normalized (all values <= 1)
-                if not np.all(corners <= 1.0):
-                    logger.warning(f"Skipping label in {path}: coordinates appear to be absolute, not normalized")
+                # Check that coordinates are already normalized (all values in [0, 1])
+                if not np.all((corners >= 0.0) & (corners <= 1.0)):
+                    logger.warning(
+                        f"Skipping label in {path}: coordinates appear to be out of normalized range [0.0, 1.0]"
+                    )
                     continue
                 labels.append([cls, *corners_to_xywhr(corners)])
             except ValueError:
@@ -313,9 +333,11 @@ class YOLODetDataset(Dataset):
                 if not (0 <= cls < self.num_classes):
                     continue
                 bbox = [float(x) for x in parts[1:5]]
-                # Check that coordinates are already normalized (all values <= 1)
-                if not all(val <= 1.0 for val in bbox):
-                    logger.warning(f"Skipping label in {path}: coordinates appear to be absolute, not normalized")
+                # Check that coordinates are already normalized (all values in [0.0, 1.0])
+                if not all(0.0 <= val <= 1.0 for val in bbox):
+                    logger.warning(
+                        f"Skipping label in {path}: coordinates appear to be out of normalized range [0.0, 1.0]"
+                    )
                     continue
                 labels.append([cls, *bbox])
             except ValueError:
