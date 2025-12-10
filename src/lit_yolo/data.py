@@ -87,7 +87,15 @@ def obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
 
 
 def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
-    """Convert standard bbox (cx, cy, w, h) to xyxy format."""
+    """Convert standard bbox (cx, cy, w, h) to xyxy format.
+
+    Args:
+        bbox: Tensor of shape (N, 4) with [cx, cy, w, h] format
+        scale: Scaling factor for coordinates
+
+    Returns:
+        Tensor of shape (N, 4) with [x1, y1, x2, y2] format
+    """
     if len(bbox) == 0:
         return torch.empty((0, 4), device=bbox.device)
 
@@ -240,6 +248,7 @@ class YOLODetDataset(Dataset):
         with open(path) as f:
             for line in f:
                 parts = line.strip().split()
+                # Standard YOLO format: class cx cy w h (5 parts)
                 if len(parts) != 5:
                     continue
                 try:
@@ -386,6 +395,14 @@ class DetDataModule(pl.LightningDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
+        """Collate function for standard detection batches.
+
+        Returns dict with:
+            img: stacked images
+            batch_idx: batch indices for each bbox
+            cls: class labels
+            bboxes: bounding boxes in (cx, cy, w, h) format - shape (N, 4)
+        """
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -394,11 +411,11 @@ class DetDataModule(pl.LightningDataModule):
                 n = labels.shape[0]
                 batch_idx.append(torch.full((n,), i, dtype=torch.long))
                 cls_list.append(labels[:, 0:1])
-                bbox_list.append(labels[:, 1:5])
+                bbox_list.append(labels[:, 1:5])  # Standard detection: 4 bbox params
 
         return {
             "img": torch.stack(imgs),
             "batch_idx": torch.cat(batch_idx) if batch_idx else torch.empty(0, dtype=torch.long),
             "cls": torch.cat(cls_list) if cls_list else torch.empty(0, 1),
-            "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),
+            "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),  # 4 params: cx, cy, w, h
         }
