@@ -22,7 +22,17 @@ logger = logging.getLogger(__name__)
 
 
 def detect_num_classes(root: Path) -> int:
-    """Scan label files to find max class index + 1."""
+    """Scan label files to find max class index + 1.
+    
+    Args:
+        root: Root directory containing labels/train and labels/val subdirectories.
+    
+    Returns:
+        Number of classes detected (max class index + 1).
+    
+    Raises:
+        ValueError: If no valid labels found in the directory.
+    """
     max_class, files_scanned = -1, 0
     for split in ["train", "val"]:
         label_dir = root / "labels" / split
@@ -50,7 +60,27 @@ _CORNER_SCALE = 1000.0
 
 
 def corners_to_xywhr(corners: np.ndarray) -> tuple[float, float, float, float, float]:
-    """Convert 4 corner points to (cx, cy, w, h, angle) format."""
+    """Convert 4 corner points to (cx, cy, w, h, angle) format.
+    
+    Args:
+        corners: Array of shape (4, 2) containing the 4 corner points.
+    
+    Returns:
+        Tuple of (cx, cy, w, h, angle) where:
+        - cx, cy: center coordinates
+        - w, h: width and height (w >= h by convention)
+        - angle: rotation angle in radians [0, pi/2)
+    
+    Examples:
+        >>> import numpy as np
+        >>> # Square box centered at (0.5, 0.5)
+        >>> corners = np.array([[0.4, 0.4], [0.6, 0.4], [0.6, 0.6], [0.4, 0.6]], dtype=np.float32)
+        >>> cx, cy, w, h, angle = corners_to_xywhr(corners)
+        >>> abs(cx - 0.5) < 0.01 and abs(cy - 0.5) < 0.01
+        True
+        >>> abs(w - 0.2) < 0.01 and abs(h - 0.2) < 0.01
+        True
+    """
     corners_px = (corners * _CORNER_SCALE).astype(np.float32)
     (cx_px, cy_px), (w_px, h_px), angle_deg = cv2.minAreaRect(corners_px)
 
@@ -68,7 +98,28 @@ def corners_to_xywhr(corners: np.ndarray) -> tuple[float, float, float, float, f
 
 
 def obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
-    """Convert OBB (xywhr) to axis-aligned xyxy bounding box."""
+    """Convert OBB (xywhr) to axis-aligned xyxy bounding box.
+    
+    Args:
+        obb: Tensor of shape (N, 5) with columns [cx, cy, w, h, angle].
+        scale: Scaling factor to apply to coordinates.
+    
+    Returns:
+        Tensor of shape (N, 4) with columns [x1, y1, x2, y2].
+    
+    Examples:
+        >>> import torch
+        >>> # Empty input
+        >>> obb = torch.empty((0, 5))
+        >>> result = obb_to_xyxy(obb)
+        >>> result.shape
+        torch.Size([0, 4])
+        >>> # Single axis-aligned box
+        >>> obb = torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0]])
+        >>> result = obb_to_xyxy(obb, scale=1.0)
+        >>> result.shape
+        torch.Size([1, 4])
+    """
     if len(obb) == 0:
         return torch.empty((0, 4), device=obb.device)
 
