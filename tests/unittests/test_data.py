@@ -1,7 +1,7 @@
 """Unit tests for lit_yolo.data module."""
 
 import numpy as np
-import pytest
+
 import torch
 
 from lit_yolo.data import corners_to_xywhr, obb_to_xyxy

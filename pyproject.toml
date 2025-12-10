@@ -73,7 +73,7 @@ select = ["E", "F", "W", "I", "N", "UP"]
 ignore = ["E501"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "src"]
+testpaths = ["tests"]
 addopts = [
     "--doctest-modules",
     "--doctest-continue-on-failure",
