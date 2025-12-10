@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lit-yolo"
 version = "0.1.0"
-description = "YOLO-OBB Training with PyTorch Lightning"
+description = "YOLO Training with PyTorch Lightning - supports standard detection and OBB"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}

@@ -2,8 +2,9 @@
 CLI entry point for lit_yolo package.
 
 Usage:
-    python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
-    python -m lit_yolo train --config config.yaml
+    python -m lit_yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
+    python -m lit_yolo train detect --data /path/to/dataset --model yolo11n.pt
+    python -m lit_yolo train obb --config config.yaml
 """
 
 import logging
@@ -16,7 +17,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from lit_yolo.training import train
+from lit_yolo.training import train_detect, train_obb
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +29,9 @@ def main():
     except ImportError:
         logger.error("Install jsonargparse: pip install 'jsonargparse[signatures]'")
         sys.exit(1)
-    
+
     # Use dictionary-based CLI for subcommands
-    CLI({"train": train}, as_positional=False)
+    CLI({"train": {"obb": train_obb, "detect": train_detect}}, as_positional=False)
 
 
 if __name__ == "__main__":
