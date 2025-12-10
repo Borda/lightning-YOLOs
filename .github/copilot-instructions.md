@@ -6,7 +6,7 @@ Lightning-YOLOs is a YOLO-OBB (Oriented Bounding Box) training framework built w
 
 **Key Technologies:**
 
-- PyTorch Lightning (>=2.0.0, \<2.6.0)
+- PyTorch Lightning (>=2.0.0, <2.6.0)
 - Ultralytics YOLO (licensed under AGPL-3.0)
 - TorchMetrics for detection metrics
 - jsonargparse for CLI configuration
