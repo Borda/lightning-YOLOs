@@ -83,3 +83,7 @@ Agents may read and reference:
 
 When writing or modifying code, add comments if the code is not self-explanatory.
 This improves readability, maintainability, and helps other contributors understand complex logic or non-obvious decisions.
+
+## Related Documentation
+
+For comprehensive development guidelines, coding standards, and GitHub Copilot instructions, see [GitHub Copilot Instructions](../copilot-instructions.md).
