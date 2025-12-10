@@ -57,9 +57,29 @@ def standard_detection_dataset(obb_dataset_dir, create_test_image):
 
     # Create label file with standard detection format
     label_path = obb_dataset_dir / "labels" / "train" / "test1.txt"
-    with open(label_path, "w", encoding="utf_8") as f:
+    with open(label_path, "w") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
         f.write("1 0.3 0.3 0.2 0.2\n")
+
+    return obb_dataset_dir
+
+
+@pytest.fixture
+def obb_format_dataset(obb_dataset_dir, create_test_image):
+    """Create a synthetic dataset with OBB format (9 values).
+
+    Returns:
+        Path to dataset root with a single image and OBB format labels.
+    """
+    # Create test image
+    img_path = obb_dataset_dir / "images" / "train" / "test2.jpg"
+    create_test_image(img_path)
+
+    # Create label file with OBB format (rectangle corners)
+    label_path = obb_dataset_dir / "labels" / "train" / "test2.txt"
+    with open(label_path, "w") as f:
+        # Simple axis-aligned rectangle
+        f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
 
     return obb_dataset_dir
 
@@ -79,12 +99,12 @@ def mixed_format_dataset(obb_dataset_dir, create_test_image):
 
     # Standard detection format
     label1_path = obb_dataset_dir / "labels" / "train" / "test_standard.txt"
-    with open(label1_path, "w", encoding="utf_8") as f:
+    with open(label1_path, "w") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
 
     # OBB format
     label2_path = obb_dataset_dir / "labels" / "train" / "test_obb.txt"
-    with open(label2_path, "w", encoding="utf_8") as f:
+    with open(label2_path, "w") as f:
         f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
 
     return obb_dataset_dir
@@ -383,20 +403,10 @@ class TestYOLOOBBDataset:
         assert labels[0, 0].item() == 0.0
         assert labels[1, 0].item() == 1.0
 
-    def test_load_obb_format(self, obb_dataset_dir, create_test_image):
+    def test_load_obb_format(self, obb_format_dataset):
         """Test loading OBB format (9 values: class + 8 corner coordinates)."""
-        # Create test image
-        img_path = obb_dataset_dir / "images" / "train" / "test2.jpg"
-        create_test_image(img_path)
-
-        # Create label file with OBB format (rectangle corners)
-        label_path = obb_dataset_dir / "labels" / "train" / "test2.txt"
-        with open(label_path, "w", encoding="utf_8") as f:
-            # Simple axis-aligned rectangle
-            f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
-
         # Load dataset
-        dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(obb_format_dataset, "train", img_size=640, num_classes=2)
 
         # Get first item
         img_tensor, labels = dataset[0]
