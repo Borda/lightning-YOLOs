@@ -5,12 +5,14 @@
 Lightning-YOLOs is a YOLO-OBB (Oriented Bounding Box) training framework built with PyTorch Lightning. The project provides a modular, production-ready implementation for training YOLO models with oriented bounding box detection capabilities.
 
 **Key Technologies:**
-- PyTorch Lightning (>=2.0.0, <2.6.0)
+
+- PyTorch Lightning (>=2.0.0, \<2.6.0)
 - Ultralytics YOLO (licensed under AGPL-3.0)
 - TorchMetrics for detection metrics
 - jsonargparse for CLI configuration
 
 **Project Structure:**
+
 ```
 src/lit_yolo/
 ├── __init__.py      # Package initialization and exports
@@ -48,6 +50,7 @@ src/lit_yolo/
 ### Pre-commit Hooks
 
 The project uses pre-commit hooks that run automatically on commit:
+
 - `ruff` for linting and formatting
 - `codespell` for spell checking
 - `docformatter` for docstring formatting
@@ -55,6 +58,7 @@ The project uses pre-commit hooks that run automatically on commit:
 - File hygiene checks (trailing whitespace, end-of-file-fixer, etc.)
 
 **Run manually:**
+
 ```bash
 pre-commit run --all-files
 ```
@@ -154,6 +158,7 @@ python -m lit_yolo train --data /path/to/dataset --model yolo11n-obb.pt
 ### Lightning Module Structure
 
 The `LitYOLOOBB` class in `models.py` follows PyTorch Lightning patterns:
+
 - `__init__`: Model initialization and hyperparameters
 - `training_step`: Training logic with loss computation
 - `validation_step`: Validation with mAP metrics
@@ -162,6 +167,7 @@ The `LitYOLOOBB` class in `models.py` follows PyTorch Lightning patterns:
 ### Data Module
 
 The `OBBDataModule` in `data.py` handles:
+
 - Auto-detection of number of classes from dataset
 - Batch loading with proper collation
 - Data preprocessing and augmentation via YOLO
@@ -169,6 +175,7 @@ The `OBBDataModule` in `data.py` handles:
 ### Training Function
 
 The `train()` function in `training.py` orchestrates:
+
 - Model and data module initialization
 - Trainer configuration with callbacks
 - Training execution
@@ -202,17 +209,20 @@ The `train()` function in `training.py` orchestrates:
 The project uses GitHub Actions workflows in `.github/workflows/`:
 
 **ci-testing.yml:**
+
 - Runs on push to `main` and pull requests
 - Tests on Python 3.10, 3.11, 3.12
 - Runs doctests and unit tests
 - Uses PyTorch CPU version for testing
 
 **ci-pkg.yml:**
+
 - Package building and validation
 
 ### Required Checks
 
 Before submitting a PR, ensure:
+
 - All tests pass: `pytest .`
 - Pre-commit hooks pass: `pre-commit run --all-files`
 - Code follows style guidelines (Ruff)
@@ -236,6 +246,7 @@ Before submitting a PR, ensure:
 ## Key Features to Maintain
 
 When contributing, preserve these core features:
+
 - ✅ Structured logging format
 - ✅ jsonargparse CLI for configuration
 - ✅ TorchMetrics mAP calculation (train + val)
