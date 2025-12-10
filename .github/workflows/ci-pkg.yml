@@ -29,7 +29,4 @@ jobs:
           pip install .
 
       - name: Validate package import and version
-        run: |
-          import lit_yolo
-          print(lit_yolo.__version__)
-        shell: python
+        run: python -c "import lit_yolo; print(lit_yolo.__version__)"
