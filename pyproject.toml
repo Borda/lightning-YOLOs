@@ -78,6 +78,7 @@ addopts = [
     "--doctest-modules",
     "--doctest-continue-on-failure",
     "-v",
+    "--color=yes",
 ]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
