@@ -206,7 +206,7 @@ The project uses GitHub Actions workflows in `.github/workflows/`:
 - Runs doctests and unit tests
 - Uses PyTorch CPU version for testing
 
-**ci-pkg.yml:**
+**ci-package.yml:**
 
 - Package building and validation
 
@@ -248,9 +248,9 @@ When contributing, preserve these core features:
 
 ## Common Tasks
 
-### Adding a New Feature
+### Adding and/or Fixing a Feature
 
-1. Implement in appropriate module (`data.py`, `models.py`, or `training.py`)
+1. Implement changes in appropriate module (`data.py`, `models.py`, or `training.py`)
 2. Add type hints to function signatures
 3. Write docstrings for public APIs
 4. Add unit tests in `tests/unittests/`
