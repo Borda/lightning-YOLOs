@@ -9,8 +9,8 @@ from typing import Any
 
 import cv2
 import numpy as np
-import pytorch_lightning as pl
 import torch
+from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
@@ -21,15 +21,15 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def detect_num_classes(root: Path) -> int:
+def determine_num_classes(root: Path) -> int:
     """Scan label files to find max class index + 1.
-    
+
     Args:
         root: Root directory containing labels/train and labels/val subdirectories.
-    
+
     Returns:
         Number of classes detected (max class index + 1).
-    
+
     Raises:
         ValueError: If no valid labels found in the directory.
     """
@@ -61,16 +61,16 @@ _CORNER_SCALE = 1000.0
 
 def corners_to_xywhr(corners: np.ndarray) -> tuple[float, float, float, float, float]:
     """Convert 4 corner points to (cx, cy, w, h, angle) format.
-    
+
     Args:
         corners: Array of shape (4, 2) containing the 4 corner points.
-    
+
     Returns:
         Tuple of (cx, cy, w, h, angle) where:
         - cx, cy: center coordinates
         - w, h: width and height (w >= h by convention)
         - angle: rotation angle in radians [0, pi/2)
-    
+
     Examples:
         >>> import numpy as np
         >>> # Square box centered at (0.5, 0.5)
@@ -99,14 +99,14 @@ def corners_to_xywhr(corners: np.ndarray) -> tuple[float, float, float, float, f
 
 def obb_to_xyxy(obb: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     """Convert OBB (xywhr) to axis-aligned xyxy bounding box.
-    
+
     Args:
         obb: Tensor of shape (N, 5) with columns [cx, cy, w, h, angle].
         scale: Scaling factor to apply to coordinates.
-    
+
     Returns:
         Tensor of shape (N, 4) with columns [x1, y1, x2, y2].
-    
+
     Examples:
         >>> import torch
         >>> # Empty input
@@ -214,18 +214,23 @@ class YOLOOBBDataset(Dataset):
 
         labels = []
         with open(path) as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) != 9:
+            lines = f.readlines()
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) != 9:
+                continue
+            try:
+                cls = int(parts[0])
+                if not (0 <= cls < self.num_classes):
                     continue
-                try:
-                    cls = int(parts[0])
-                    if not (0 <= cls < self.num_classes):
-                        continue
-                    corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                    labels.append([cls, *corners_to_xywhr(corners)])
-                except ValueError:
+                corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
+                # Check that coordinates are already normalized (all values <= 1)
+                if not np.all(corners <= 1.0):
+                    logger.warning(f"Skipping label in {path}: coordinates appear to be absolute, not normalized")
                     continue
+                labels.append([cls, *corners_to_xywhr(corners)])
+            except ValueError:
+                continue
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
@@ -297,19 +302,24 @@ class YOLODetDataset(Dataset):
 
         labels = []
         with open(path) as f:
-            for line in f:
-                parts = line.strip().split()
-                # Standard YOLO format: class cx cy w h (5 parts)
-                if len(parts) != 5:
+            lines = f.readlines()
+        for line in lines:
+            parts = line.strip().split()
+            # Standard YOLO format: class cx cy w h (5 parts)
+            if len(parts) != 5:
+                continue
+            try:
+                cls = int(parts[0])
+                if not (0 <= cls < self.num_classes):
                     continue
-                try:
-                    cls = int(parts[0])
-                    if not (0 <= cls < self.num_classes):
-                        continue
-                    bbox = [float(x) for x in parts[1:5]]
-                    labels.append([cls, *bbox])
-                except ValueError:
+                bbox = [float(x) for x in parts[1:5]]
+                # Check that coordinates are already normalized (all values <= 1)
+                if not all(val <= 1.0 for val in bbox):
+                    logger.warning(f"Skipping label in {path}: coordinates appear to be absolute, not normalized")
                     continue
+                labels.append([cls, *bbox])
+            except ValueError:
+                continue
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 5), dtype=torch.float32)
 
@@ -330,7 +340,7 @@ class YOLODetDataset(Dataset):
 # =============================================================================
 
 
-class OBBDataModule(pl.LightningDataModule):
+class OBBDataModule(LightningDataModule):
     """Lightning DataModule for OBB datasets - handles all data setup."""
 
     def __init__(
@@ -346,7 +356,7 @@ class OBBDataModule(pl.LightningDataModule):
     @property
     def num_classes(self) -> int:
         if self._num_classes is None:
-            self._num_classes = detect_num_classes(self.data_root)
+            self._num_classes = determine_num_classes(self.data_root)
         return self._num_classes
 
     def setup(self, stage: str | None = None):
@@ -397,7 +407,7 @@ class OBBDataModule(pl.LightningDataModule):
         }
 
 
-class DetDataModule(pl.LightningDataModule):
+class DetDataModule(LightningDataModule):
     """Lightning DataModule for standard detection datasets - handles all data setup."""
 
     def __init__(
@@ -413,7 +423,7 @@ class DetDataModule(pl.LightningDataModule):
     @property
     def num_classes(self) -> int:
         if self._num_classes is None:
-            self._num_classes = detect_num_classes(self.data_root)
+            self._num_classes = determine_num_classes(self.data_root)
         return self._num_classes
 
     def setup(self, stage: str | None = None):

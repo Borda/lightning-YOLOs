@@ -11,7 +11,7 @@ from lit_yolo.data import (
     YOLODetDataset,
     YOLOOBBDataset,
     corners_to_xywhr,
-    detect_num_classes,
+    determine_num_classes,
     obb_to_xyxy,
     xywh_to_xyxy,
 )
@@ -26,7 +26,7 @@ __all__ = [
     "LitYOLODet",
     "LitYOLOOBB",
     "corners_to_xywhr",
-    "detect_num_classes",
+    "determine_num_classes",
     "obb_to_xyxy",
     "xywh_to_xyxy",
     "train_obb",
