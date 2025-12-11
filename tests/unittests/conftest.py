@@ -50,7 +50,7 @@ def standard_detection_dataset(obb_dataset_dir, create_test_image):
 
     # Create label file with standard detection format
     label_path = obb_dataset_dir / "labels" / "train" / "test1.txt"
-    with open(label_path, "w") as f:
+    with open(label_path, "w", encoding="utf_8") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
         f.write("1 0.3 0.3 0.2 0.2\n")
 
