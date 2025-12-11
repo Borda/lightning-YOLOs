@@ -327,7 +327,7 @@ class TestYOLOOBBDataset:
 
         # Create label file with standard detection format
         label_path = obb_dataset_dir / "labels" / "train" / "test3.txt"
-        with open(label_path, "w") as f:
+        with open(label_path, "w", encoding="utf_8") as f:
             f.write("0 0.5 0.5 0.3 0.4\n")
 
         # Check that warning is raised
@@ -344,7 +344,7 @@ class TestYOLOOBBDataset:
             create_test_image(img_path)
 
             label_path = obb_dataset_dir / "labels" / "train" / f"test{i}.txt"
-            with open(label_path, "w") as f:
+            with open(label_path, "w", encoding="utf_8") as f:
                 f.write(f"{i % 2} 0.5 0.5 0.3 0.4\n")
 
         # Check that warning is raised exactly once
@@ -382,7 +382,7 @@ class TestYOLOOBBDataset:
 
         # Create label file with mixed valid and invalid lines
         label_path = obb_dataset_dir / "labels" / "train" / "test_invalid.txt"
-        with open(label_path, "w") as f:
+        with open(label_path, "w", encoding="utf_8") as f:
             f.write("0 0.5 0.5 0.3 0.4\n")  # Valid standard detection
             f.write("0 0.1 0.2 0.3\n")  # Invalid - unsupported format (4 values)
             f.write("abc 0.5 0.5 0.3 0.4\n")  # Invalid - non-numeric class
