@@ -17,10 +17,6 @@ from torch.utils.data import DataLoader, Dataset
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# SYNTHETIC DATASET CONSTANTS
-# =============================================================================
-
 # Available shapes for synthetic dataset generation
 SYNTHETIC_SHAPES = ["square", "triangle", "circle"]
 
@@ -30,11 +26,6 @@ SYNTHETIC_COLORS = {
     "green": (0, 255, 0),
     "blue": (0, 0, 255),
 }
-
-
-# =============================================================================
-# UTILITIES
-# =============================================================================
 
 
 def determine_num_classes(root: Path) -> int:
@@ -193,11 +184,6 @@ def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     return torch.stack([x1, y1, x2, y2], dim=1)
 
 
-# =============================================================================
-# SYNTHETIC DATASET GENERATION FUNCTIONS
-# =============================================================================
-
-
 def draw_synthetic_shape(img: np.ndarray, shape: str, color: tuple, center: tuple, size: int) -> np.ndarray:
     """Draw a geometric shape on an image.
 
@@ -304,6 +290,3 @@ def generate_synthetic_sample(
         labels.append((cls, box_cx, box_cy, box_w, box_h))
 
     return img, labels
-
-
-# =============================================================================

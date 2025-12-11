@@ -16,10 +16,6 @@ from lit_yolo.data.utils import corners_to_xywhr
 logger = logging.getLogger(__name__)
 
 
-# DATASET
-# =============================================================================
-
-
 class BaseYOLODataset(Dataset):
     """
     Abstract base class for YOLO-style datasets, providing common functionality for image loading,
@@ -254,6 +250,3 @@ class YOLODetDataset(BaseYOLODataset):
                 continue
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 5), dtype=torch.float32)
-
-
-# =============================================================================
