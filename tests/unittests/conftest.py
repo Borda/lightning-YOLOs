@@ -21,11 +21,13 @@ def create_test_image():
 
 @pytest.fixture
 def obb_dataset_dir(tmp_path, create_test_image):
-    """Create a reusable OBB dataset directory structure with sample data.
+    """Create a reusable YOLO dataset directory structure.
 
-    This fixture creates a temporary dataset with the following structure:
-    - images/train/ with test images
-    - labels/train/ (empty, to be populated by individual tests)
+    This fixture creates a temporary dataset directory with the standard YOLO structure:
+    - images/train/ (for training images)
+    - labels/train/ (for label files, empty to be populated by individual tests)
+
+    Can be used for any YOLO format (standard detection, OBB, etc.).
     """
     root = tmp_path / "obb_dataset"
     # Create directory structure
@@ -57,7 +59,9 @@ def standard_detection_dataset(obb_dataset_dir, create_test_image):
 
 @pytest.fixture
 def obb_format_dataset(obb_dataset_dir, create_test_image):
-    """Create a synthetic dataset with OBB format (9 values).
+    """Create a synthetic OBB dataset with oriented bounding box format.
+
+    Creates a dataset with OBB format labels (9 values: class + 8 corner coordinates).
 
     Returns:
         Path to dataset root with a single image and OBB format labels.
@@ -77,10 +81,14 @@ def obb_format_dataset(obb_dataset_dir, create_test_image):
 
 @pytest.fixture
 def mixed_format_dataset(obb_dataset_dir, create_test_image):
-    """Create a synthetic dataset with mixed standard detection and OBB formats.
+    """Create a synthetic dataset with mixed plain bounding boxes and OBB formats.
+
+    Creates a dataset containing:
+    - One image with standard detection format (5 values: class x y w h)
+    - One image with OBB format (9 values: class + 8 corner coordinates)
 
     Returns:
-        Path to dataset root with two images - one with standard detection, one with OBB format.
+        Path to dataset root with two images using different annotation formats.
     """
     # Create test images
     img1_path = obb_dataset_dir / "images" / "train" / "test_standard.jpg"
