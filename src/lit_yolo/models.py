@@ -34,7 +34,7 @@ class BaseLitYOLO(pl.LightningModule):
         - Model loading and initialization from a given model name or path.
         - Training and validation step logic, including loss computation and metric updates.
         - Optimizer and learning rate scheduler configuration.
-        - Automatic metric logging for mAP (if torchmetrics[detection] is installed).
+        - Metric initialization in setup() and automatic logging for mAP (if torchmetrics[detection] is installed).
         - Device management and batch transfer utilities.
 
     Example:

@@ -214,19 +214,8 @@ class BaseYOLODataset(Dataset):
                 # Custom label loading logic here
                 ...
     """
+
     def __init__(self, root: Path, split: str, img_size: int, num_classes: int):
-        """Initialize base YOLO dataset.
-
-        Args:
-            root: Root directory containing 'images/' and 'labels/' subdirectories.
-            split: Dataset split ('train', 'val', or 'test').
-            img_size: Target image size for resizing (e.g., 640).
-            num_classes: Number of object classes in the dataset.
-
-        Raises:
-            ValueError: If img_size is not a positive integer or no images found.
-            FileNotFoundError: If image directory does not exist.
-        """
         if not isinstance(img_size, int) or img_size <= 0:
             raise ValueError(f"img_size must be a positive integer, got {img_size}")
         self.img_size, self.num_classes = img_size, num_classes
@@ -277,6 +266,7 @@ class BaseYOLODataset(Dataset):
             labels[:, 3] *= new_w / self.img_size
             labels[:, 4] *= new_h / self.img_size
 
+        # Convert to tensor: HWC -> CHW format and normalize to [0, 1]
         return torch.from_numpy(img).permute(2, 0, 1).float().div_(255.0), labels
 
     def _load_labels(self, path: Path) -> torch.Tensor:
@@ -431,6 +421,10 @@ class BaseYOLODataModule(LightningDataModule):
 
     To extend for a new YOLO variant, subclass this class and implement the required methods.
     """
+
+    train_ds: Dataset | None = None
+    val_ds: Dataset | None = None
+    test_ds: Dataset | None = None
 
     def __init__(
         self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None
