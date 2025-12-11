@@ -1,14 +1,14 @@
 ## Description
 
-Please include a summary of the changes and the related issue. Please also include relevant motivation and context.
+<!-- Please include a summary of the changes and the related issue. Please also include relevant motivation and context. -->
 
 ## Type of change
 
-(e.g., Bug fix, New feature, Breaking change, Documentation update)
+<!-- e.g., Bug fix, New feature, Breaking change, Documentation update -->
 
 ## How Has This Been Tested?
 
-Please describe the tests that you ran to verify your changes.
+<!-- Please describe the tests that you ran to verify your changes. -->
 
 <details>
 <summary>Checklist</summary>
