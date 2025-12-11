@@ -68,7 +68,10 @@ def test_invalid_class_mode(tmp_path):
 
 def test_label_format_validity(tmp_path):
     """Test that generated labels are in valid YOLO format."""
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=7, split_ratio=0.7)
+    # Use fixed min/max to have predictable object counts
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+        tmp_path, num_samples=7, split_ratio=0.7, min_objects=3, max_objects=3
+    )
 
     # Check label format (class cx cy w h, all normalized)
     label_files = list((dataset_path / "labels" / "train").glob("*.txt"))
@@ -78,7 +81,7 @@ def test_label_format_validity(tmp_path):
             lines = [ln.strip() for ln in f.readlines()]
             # Filter out empty lines
             lines = [ln for ln in lines if ln]
-            # Each image should have 3 objects (default)
+            # Each image should have 3 objects (min=max=3)
             assert len(lines) == 3
 
             for line in lines:
@@ -240,13 +243,14 @@ def test_string_path_input(tmp_path):
 
 
 def test_custom_num_objects(tmp_path):
-    """Test configurable number of objects per image."""
-    num_objects = 5
+    """Test configurable range of objects per image."""
+    min_objects = 3
+    max_objects = 7
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-        tmp_path, num_samples=7, split_ratio=0.7, num_objects=num_objects
+        tmp_path, num_samples=20, split_ratio=0.7, min_objects=min_objects, max_objects=max_objects
     )
 
-    # Check that each label file has the specified number of objects
+    # Check that each label file has objects within the specified range
     label_files = list((dataset_path / "labels" / "train").glob("*.txt"))
 
     for label_file in label_files:
@@ -254,5 +258,5 @@ def test_custom_num_objects(tmp_path):
             lines = [ln.strip() for ln in f.readlines()]
             # Filter out empty lines
             lines = [ln for ln in lines if ln]
-            # Each image should have the specified number of objects
-            assert len(lines) == num_objects
+            # Each image should have objects within the specified range
+            assert min_objects <= len(lines) <= max_objects

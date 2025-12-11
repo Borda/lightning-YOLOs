@@ -141,16 +141,10 @@ lit-yolo create dataset \
 lit-yolo train detect --data ./synthetic_dataset --model yolo11n.pt --epochs 10
 ```
 
-**Parameters:**
-- `--output`: Output directory for the dataset (default: `./synthetic_dataset`)
-- `--num_samples`: Total number of samples to generate (default: `100`)
-- `--split_ratio`: Train/val split ratio, e.g., 0.8 = 80% train, 20% val (default: `0.8`)
-- `--img_size`: Size of generated square images (default: `640`)
-- `--class_mode`: Classification mode - `shape` (3 shape classes) or `color` (3 color classes) (default: `shape`)
-- `--num_objects`: Number of objects per image (default: `3`)
-- `--min_size_ratio`: Minimum object size as ratio of image size (default: `0.1`)
-- `--max_size_ratio`: Maximum object size as ratio of image size (default: `0.2`)
-- `--seed`: Random seed for reproducibility (default: `42`)
+For details on all available parameters, run:
+```bash
+lit-yolo create dataset --help
+```
 
 The synthetic dataset feature generates:
 - Images with three basic shapes: square, triangle, and circle

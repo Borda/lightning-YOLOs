@@ -234,7 +234,8 @@ def draw_synthetic_shape(img: np.ndarray, shape: str, color: tuple, center: tupl
 
 def generate_synthetic_sample(
     img_size: int,
-    num_objects: int,
+    min_objects: int,
+    max_objects: int,
     class_mode: Literal["shape", "color"],
     min_size_ratio: float,
     max_size_ratio: float,
@@ -243,7 +244,8 @@ def generate_synthetic_sample(
 
     Args:
         img_size: Size of the image (square).
-        num_objects: Number of objects to generate.
+        min_objects: Minimum number of objects to generate.
+        max_objects: Maximum number of objects to generate.
         class_mode: Classification mode ("shape" or "color").
         min_size_ratio: Minimum object size as ratio of image size.
         max_size_ratio: Maximum object size as ratio of image size.
@@ -256,6 +258,9 @@ def generate_synthetic_sample(
 
     labels = []
     color_names = list(SYNTHETIC_COLORS.keys())
+
+    # Randomly decide how many objects to generate
+    num_objects = np.random.randint(min_objects, max_objects + 1)
 
     # Generate objects (cycling through shapes and colors)
     for i in range(num_objects):
@@ -607,7 +612,8 @@ class BaseYOLODataModule(LightningDataModule):
         split_ratio: float = 0.8,
         img_size: int = 640,
         class_mode: Literal["shape", "color"] = "shape",
-        num_objects: int = 3,
+        min_objects: int = 3,
+        max_objects: int = 5,
         min_size_ratio: float = 0.1,
         max_size_ratio: float = 0.2,
         seed: int = 42,
@@ -623,7 +629,8 @@ class BaseYOLODataModule(LightningDataModule):
             split_ratio: Ratio of training samples (e.g., 0.8 means 80% train, 20% val).
             img_size: Size of generated images (square).
             class_mode: Classification mode - "shape" or "color".
-            num_objects: Number of objects to place in each image.
+            min_objects: Minimum number of objects per image.
+            max_objects: Maximum number of objects per image.
             min_size_ratio: Minimum object size as ratio of image size (default 0.1 = 10%).
             max_size_ratio: Maximum object size as ratio of image size (default 0.2 = 20%).
             seed: Random seed for reproducibility.
@@ -640,11 +647,6 @@ class BaseYOLODataModule(LightningDataModule):
             ...     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
             ...         root, num_samples=10, split_ratio=0.7
             ...     )
-            ...     # Check structure
-            ...     (dataset_path / "images" / "train").exists()
-            True
-            ...     (dataset_path / "labels" / "train").exists()
-            True
             ...     len(list((dataset_path / "images" / "train").glob("*.jpg")))
             7
             ...     len(list((dataset_path / "images" / "val").glob("*.jpg")))
@@ -672,7 +674,8 @@ class BaseYOLODataModule(LightningDataModule):
                 # Generate image and labels
                 img, labels = generate_synthetic_sample(
                     img_size=img_size,
-                    num_objects=num_objects,
+                    min_objects=min_objects,
+                    max_objects=max_objects,
                     class_mode=class_mode,
                     min_size_ratio=min_size_ratio,
                     max_size_ratio=max_size_ratio,
@@ -752,3 +755,45 @@ class DetDataModule(BaseYOLODataModule):
             "cls": torch.cat(cls_list) if cls_list else torch.empty(0, 1),
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),  # 4 params: cx, cy, w, h
         }
+
+
+def create_synthetic_dataset_cli(
+    output: str = "./synthetic_dataset",
+    num_samples: int = 100,
+    split_ratio: float = 0.8,
+    img_size: int = 640,
+    class_mode: str = "shape",
+    min_objects: int = 3,
+    max_objects: int = 5,
+    min_size_ratio: float = 0.1,
+    max_size_ratio: float = 0.2,
+    seed: int = 42,
+) -> None:
+    """CLI wrapper for creating a synthetic dataset with geometric shapes.
+
+    Args:
+        output: Output directory for the dataset.
+        num_samples: Total number of samples to generate.
+        split_ratio: Ratio of training samples (e.g., 0.8 = 80% train, 20% val).
+        img_size: Size of generated images (square).
+        class_mode: Classification mode - "shape" or "color".
+        min_objects: Minimum number of objects per image.
+        max_objects: Maximum number of objects per image.
+        min_size_ratio: Minimum object size as ratio of image size.
+        max_size_ratio: Maximum object size as ratio of image size.
+        seed: Random seed for reproducibility.
+    """
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+        root=output,
+        num_samples=num_samples,
+        split_ratio=split_ratio,
+        img_size=img_size,
+        class_mode=class_mode,
+        min_objects=min_objects,
+        max_objects=max_objects,
+        min_size_ratio=min_size_ratio,
+        max_size_ratio=max_size_ratio,
+        seed=seed,
+    )
+
+    logger.info(f"Synthetic dataset created successfully at: {dataset_path}")
