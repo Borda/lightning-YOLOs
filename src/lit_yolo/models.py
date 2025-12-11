@@ -45,6 +45,9 @@ class BaseLitYOLO(pl.LightningModule):
 
     See `LitYOLOOBB` for a concrete implementation.
     """
+
+    def __init__(
+        self,
         model_name: str,
         num_classes: int,
         lr: float = 1e-3,
@@ -132,7 +135,18 @@ class BaseLitYOLO(pl.LightningModule):
         return {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
     def _compute_step(self, batch: dict, stage: str) -> torch.Tensor:
-        """Shared logic for training and validation steps."""
+        """Shared logic for training and validation steps.
+
+        Computes the loss, logs metrics, and updates the metric tracker by calling
+        the abstract _update_metrics method (which must be implemented by subclasses).
+
+        Args:
+            batch: Dictionary containing 'img' and other batch data.
+            stage: Either 'train' or 'val' to distinguish training/validation.
+
+        Returns:
+            Total loss as a scalar tensor.
+        """
         preds = self(batch["img"])
         batch_dev = self._to_device(batch)
         loss, items = self.criterion(preds, batch_dev)

@@ -431,6 +431,8 @@ class BaseYOLODataModule(LightningDataModule):
 
     To extend for a new YOLO variant, subclass this class and implement the required methods.
     """
+
+    def __init__(
         self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None
     ):
         """Initialize base YOLO data module.
