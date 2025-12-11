@@ -205,6 +205,8 @@ class BaseYOLODataset(Dataset):
                 ...
     """
 
+    FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+
     def __init__(self, root: Path, split: str, img_size: int, num_classes: int):
         if not isinstance(img_size, int) or img_size <= 0:
             raise ValueError(f"img_size must be a positive integer, got {img_size}")
