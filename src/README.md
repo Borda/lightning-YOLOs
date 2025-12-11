@@ -167,6 +167,22 @@ All values are normalized between 0 and 1.
 - ✅ Modular package structure
 - ✅ Standard detection and OBB support
 
+### Dataset Format Support
+
+The OBB dataset loader now supports both formats:
+
+1. **OBB Format** (9 values per line): `class x1 y1 x2 y2 x3 y3 x4 y4`
+   - Recommended for production training with oriented bounding boxes
+   - Provides full rotation information
+
+2. **Standard Detection Format** (5 values per line): `class x y w h`
+   - Useful for debugging convergence with simpler datasets
+   - Enables CI testing with tiny datasets
+   - Rotation is automatically set to 0
+   - A warning is logged when this format is detected
+
+Both formats can coexist in the same project (e.g., different splits can use different formats).
+
 ## Migration from Original File
 
 The original `yolo_obb_lightning.py` has been refactored and extended:

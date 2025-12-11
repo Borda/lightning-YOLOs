@@ -4,6 +4,7 @@ Data utilities, dataset, and data module for YOLO-OBB.
 
 import logging
 import math
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -205,6 +206,7 @@ class BaseYOLODataset(Dataset):
         self.img_size, self.num_classes = img_size, num_classes
         self.img_dir = root / "images" / split
         self.label_dir = root / "labels" / split
+        self._standard_format_warned = False  # Track if warning has been logged
 
         if not self.img_dir.exists():
             raise FileNotFoundError(f"Image directory not found: {self.img_dir}")
@@ -291,29 +293,56 @@ class YOLOOBBDataset(BaseYOLODataset):
             return torch.zeros((0, 6), dtype=torch.float32)
 
         labels = []
+        has_standard_detection = False
         with open(path) as f:
             lines = f.readlines()
         for line in lines:
             parts = line.strip().split()
-            if len(parts) != 9:
-                if parts:  # Only log if line is not empty
-                    logger.debug(f"Skipping line in {path}: expected 9 values (class + 8 corners), got {len(parts)}")
-                continue
-            try:
-                cls = int(parts[0])
-                if not (0 <= cls < self.num_classes):
+            if len(parts) == 5:
+                # Standard detection format: class x y w h (no rotation)
+                has_standard_detection = True
+                try:
+                    cls = int(parts[0])
+                    if not (0 <= cls < self.num_classes):
+                        continue
+                    x, y, w, h = map(float, parts[1:5])
+                    # Append with rotation = 0
+                    labels.append([cls, x, y, w, h, 0.0])
+                except ValueError as e:
+                    logger.debug(f"Skipping invalid line in {path}: {e}")
                     continue
-                corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                # Check that coordinates are already normalized (all values in [0, 1])
-                if not np.all((corners >= 0.0) & (corners <= 1.0)):
-                    logger.warning(
-                        f"Skipping label in {path}: coordinates appear to be out of normalized range [0.0, 1.0]"
+            elif len(parts) == 9:
+                # OBB format: class + 8 corner coordinates
+                try:
+                    cls = int(parts[0])
+                    if not (0 <= cls < self.num_classes):
+                        continue
+                    corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
+                    labels.append([cls, *corners_to_xywhr(corners)])
+                except ValueError as e:
+                    logger.debug(f"Skipping invalid line in {path}: {e}")
+                    continue
+            else:
+                # Skip invalid formats
+                if parts:  # Only warn if line is not empty
+                    warnings.warn(
+                        f"Unsupported format in {path}: expected 5 values (standard detection) "
+                        f"or 9 values (OBB), got {len(parts)} values",
+                        UserWarning,
+                        stacklevel=2,
                     )
-                    continue
-                labels.append([cls, *corners_to_xywhr(corners)])
-            except ValueError as e:
-                logger.debug(f"Skipping invalid line in {path}: {e}")
                 continue
+
+        # Warn only once per dataset to avoid log noise
+        if has_standard_detection and labels and not self._standard_format_warned:
+            warnings.warn(
+                "Standard detection format detected. "
+                "Using axis-aligned bounding boxes with rotation set to 0. "
+                "For optimal OBB training, please provide annotations in OBB format (8 corner coordinates).",
+                UserWarning,
+                stacklevel=2,
+            )
+            self._standard_format_warned = True
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
