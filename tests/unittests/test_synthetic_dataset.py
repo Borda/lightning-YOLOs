@@ -10,13 +10,12 @@ from lit_yolo.data import BaseYOLODataModule, DetDataModule, OBBDataModule
 
 def test_basic_creation(tmp_path):
     """Test basic synthetic dataset creation."""
-    root = tmp_path / "synthetic"
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-        root, num_samples=7, split_ratio=0.7, img_size=640, class_mode="shape"
+        tmp_path, num_samples=7, split_ratio=0.7, img_size=640, class_mode="shape"
     )
 
     # Verify path is returned correctly
-    assert dataset_path == root
+    assert dataset_path == tmp_path
 
     # Verify directory structure
     assert (dataset_path / "images" / "train").exists()
@@ -40,9 +39,8 @@ def test_basic_creation(tmp_path):
 @pytest.mark.parametrize("class_mode", ["shape", "color"])
 def test_class_modes(tmp_path, class_mode):
     """Test synthetic dataset with different classification modes."""
-    root = tmp_path / f"synthetic_{class_mode}"
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-        root, num_samples=15, split_ratio=0.67, class_mode=class_mode
+        tmp_path, num_samples=15, split_ratio=0.67, class_mode=class_mode
     )
 
     # Check that labels contain only class indices 0, 1, 2
@@ -64,15 +62,13 @@ def test_class_modes(tmp_path, class_mode):
 
 def test_invalid_class_mode(tmp_path):
     """Test that invalid class_mode raises ValueError."""
-    root = tmp_path / "synthetic_invalid"
     with pytest.raises(ValueError, match="class_mode"):
-        BaseYOLODataModule.create_synthetic_dataset(root, class_mode="invalid")
+        BaseYOLODataModule.create_synthetic_dataset(tmp_path, class_mode="invalid")
 
 
 def test_label_format_validity(tmp_path):
     """Test that generated labels are in valid YOLO format."""
-    root = tmp_path / "synthetic_format"
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(root, num_samples=7, split_ratio=0.7)
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=7, split_ratio=0.7)
 
     # Check label format (class cx cy w h, all normalized)
     label_files = list((dataset_path / "labels" / "train").glob("*.txt"))
@@ -105,10 +101,9 @@ def test_label_format_validity(tmp_path):
 
 def test_image_properties(tmp_path):
     """Test that generated images have correct properties."""
-    root = tmp_path / "synthetic_img"
     img_size = 512
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-        root, num_samples=4, split_ratio=0.75, img_size=img_size
+        tmp_path, num_samples=4, split_ratio=0.75, img_size=img_size
     )
 
     # Check image properties
@@ -126,8 +121,7 @@ def test_image_properties(tmp_path):
 
 def test_image_label_correspondence(tmp_path):
     """Test that each image has a corresponding label file."""
-    root = tmp_path / "synthetic_corr"
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(root, num_samples=15, split_ratio=0.67)
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
     for split in ["train", "val"]:
         img_dir = dataset_path / "images" / split
@@ -146,8 +140,9 @@ def test_image_label_correspondence(tmp_path):
 
 def test_reproducibility_with_seed(tmp_path):
     """Test that same seed produces same dataset."""
-    root1 = tmp_path / "synthetic_seed1"
-    root2 = tmp_path / "synthetic_seed2"
+    # Create two separate temp directories for comparison
+    root1 = tmp_path / "dataset1"
+    root2 = tmp_path / "dataset2"
 
     # Create two datasets with same seed
     BaseYOLODataModule.create_synthetic_dataset(root1, num_samples=7, split_ratio=0.7, seed=123)
@@ -167,10 +162,9 @@ def test_reproducibility_with_seed(tmp_path):
 
 def test_custom_image_size(tmp_path):
     """Test synthetic dataset creation with custom image size."""
-    root = tmp_path / "synthetic_custom_size"
     custom_size = 320
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-        root, num_samples=4, split_ratio=0.75, img_size=custom_size
+        tmp_path, num_samples=4, split_ratio=0.75, img_size=custom_size
     )
 
     # Check that images have the custom size
@@ -183,8 +177,7 @@ def test_custom_image_size(tmp_path):
 
 def test_can_load_with_det_datamodule(tmp_path):
     """Test that synthetic dataset can be loaded with DetDataModule."""
-    root = tmp_path / "synthetic_det"
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(root, num_samples=15, split_ratio=0.67)
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
     # Create DetDataModule and load dataset
     datamodule = DetDataModule(data=str(dataset_path), img_size=640, batch_size=2, num_classes=3)
@@ -211,8 +204,7 @@ def test_can_load_with_det_datamodule(tmp_path):
 
 def test_can_load_with_obb_datamodule(tmp_path):
     """Test that synthetic dataset can be loaded with OBBDataModule (standard format)."""
-    root = tmp_path / "synthetic_obb"
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(root, num_samples=15, split_ratio=0.67)
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
     # Create OBBDataModule and load dataset
     # OBB module should also handle standard detection format
@@ -239,7 +231,7 @@ def test_can_load_with_obb_datamodule(tmp_path):
 
 def test_string_path_input(tmp_path):
     """Test that method accepts string path as input."""
-    root_str = str(tmp_path / "synthetic_str")
+    root_str = str(tmp_path)
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(root_str, num_samples=4, split_ratio=0.75)
 
     # Should return Path object
@@ -249,10 +241,9 @@ def test_string_path_input(tmp_path):
 
 def test_custom_num_objects(tmp_path):
     """Test configurable number of objects per image."""
-    root = tmp_path / "synthetic_objects"
     num_objects = 5
     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-        root, num_samples=7, split_ratio=0.7, num_objects=num_objects
+        tmp_path, num_samples=7, split_ratio=0.7, num_objects=num_objects
     )
 
     # Check that each label file has the specified number of objects
