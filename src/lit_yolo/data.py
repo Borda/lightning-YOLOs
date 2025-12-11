@@ -579,8 +579,9 @@ class BaseYOLODataModule(LightningDataModule):
                 else:  # class_mode == "color"
                     cls = color_names.index(color_name)
 
-                # Random position and size
-                min_size, max_size = img_size // 10, img_size // 5
+                # Random position and size - ensure valid ranges even for small image sizes
+                min_size = max(1, img_size // 10)
+                max_size = max(min_size + 1, img_size // 5)
                 obj_size = np.random.randint(min_size, max_size)
                 margin = obj_size
                 cx = np.random.randint(margin, img_size - margin)
@@ -590,16 +591,20 @@ class BaseYOLODataModule(LightningDataModule):
                 img = draw_shape(img, shape, color, (cx, cy), obj_size)
 
                 # Create bounding box (normalized YOLO format: cx, cy, w, h)
-                # Add some padding to the bounding box
-                padding = 1.2
-                box_w = (obj_size * padding) / img_size
-                box_h = (obj_size * padding) / img_size
+                # Add padding to the bounding box to ensure it contains the entire shape
+                bbox_padding_factor = 1.2
+                box_w = (obj_size * bbox_padding_factor) / img_size
+                box_h = (obj_size * bbox_padding_factor) / img_size
                 box_cx = cx / img_size
                 box_cy = cy / img_size
 
-                # Ensure box is within bounds
+                # Ensure box is within image bounds
+                # Clamp width and height to not exceed image boundaries
                 box_w = min(box_w, 1.0)
                 box_h = min(box_h, 1.0)
+                # Clamp center coordinates to keep box within image
+                box_cx = max(box_w / 2, min(1.0 - box_w / 2, box_cx))
+                box_cy = max(box_h / 2, min(1.0 - box_h / 2, box_cy))
 
                 labels.append(f"{cls} {box_cx:.6f} {box_cy:.6f} {box_w:.6f} {box_h:.6f}")
 

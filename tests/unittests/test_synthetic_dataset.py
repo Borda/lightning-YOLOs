@@ -53,8 +53,9 @@ class TestCreateSyntheticDataset:
         for label_file in label_files:
             with open(label_file) as f:
                 for line in f:
-                    parts = line.strip().split()
-                    if parts:
+                    line = line.strip()
+                    if line:  # Skip empty lines
+                        parts = line.split()
                         cls = int(parts[0])
                         classes_found.add(cls)
 
@@ -75,8 +76,9 @@ class TestCreateSyntheticDataset:
         for label_file in label_files:
             with open(label_file) as f:
                 for line in f:
-                    parts = line.strip().split()
-                    if parts:
+                    line = line.strip()
+                    if line:  # Skip empty lines
+                        parts = line.split()
                         cls = int(parts[0])
                         classes_found.add(cls)
 
@@ -99,12 +101,12 @@ class TestCreateSyntheticDataset:
 
         for label_file in label_files:
             with open(label_file) as f:
-                lines = f.readlines()
+                lines = [line.strip() for line in f if line.strip()]
                 # Each image should have 3 objects
                 assert len(lines) == 3
 
                 for line in lines:
-                    parts = line.strip().split()
+                    parts = line.split()
                     # Should have 5 parts: class, cx, cy, w, h
                     assert len(parts) == 5
 
