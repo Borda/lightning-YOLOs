@@ -279,10 +279,10 @@ class TestXywhToXyxy:
 class TestYOLOOBBDataset:
     """Tests for YOLOOBBDataset class."""
 
-    def test_load_standard_detection_format(self, standard_detection_dataset):
+    def test_load_standard_detection_format(self, bounding_box_dataset):
         """Test loading standard detection format (5 values: class x y w h)."""
         # Load dataset
-        dataset = YOLOOBBDataset(standard_detection_dataset, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(bounding_box_dataset, "train", img_size=640, num_classes=2)
 
         # Get first item
         img_tensor, labels = dataset[0]
@@ -302,10 +302,10 @@ class TestYOLOOBBDataset:
         assert labels[0, 0].item() == 0.0
         assert labels[1, 0].item() == 1.0
 
-    def test_load_obb_format(self, obb_format_dataset):
+    def test_load_obb_format(self, oriented_bounding_box_dataset):
         """Test loading OBB format (9 values: class + 8 corner coordinates)."""
         # Load dataset
-        dataset = YOLOOBBDataset(obb_format_dataset, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(oriented_bounding_box_dataset, "train", img_size=640, num_classes=2)
 
         # Get first item
         img_tensor, labels = dataset[0]
@@ -319,37 +319,37 @@ class TestYOLOOBBDataset:
         # For axis-aligned rectangle, rotation should be close to 0
         assert abs(labels[0, 5].item()) < 0.1
 
-    def test_standard_detection_warning_raised(self, obb_dataset_dir, create_test_image):
+    def test_standard_detection_warning_raised(self, yolo_dataset_dir, create_test_image):
         """Test that warning is raised when standard detection format is detected."""
         # Create test image
-        img_path = obb_dataset_dir / "images" / "train" / "test3.jpg"
+        img_path = yolo_dataset_dir / "images" / "train" / "test3.jpg"
         create_test_image(img_path)
 
         # Create label file with standard detection format
-        label_path = obb_dataset_dir / "labels" / "train" / "test3.txt"
+        label_path = yolo_dataset_dir / "labels" / "train" / "test3.txt"
         with open(label_path, "w", encoding="utf_8") as f:
             f.write("0 0.5 0.5 0.3 0.4\n")
 
         # Check that warning is raised
         with pytest.warns(UserWarning, match="Standard detection format detected"):
-            dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+            dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
             # Load first item to trigger warning
             _, _ = dataset[0]
 
-    def test_standard_detection_warning_only_once(self, obb_dataset_dir, create_test_image):
+    def test_standard_detection_warning_only_once(self, yolo_dataset_dir, create_test_image):
         """Test that warning is only raised once per dataset instance."""
         # Create multiple test images with standard detection format
         for i in range(3):
-            img_path = obb_dataset_dir / "images" / "train" / f"test{i}.jpg"
+            img_path = yolo_dataset_dir / "images" / "train" / f"test{i}.jpg"
             create_test_image(img_path)
 
-            label_path = obb_dataset_dir / "labels" / "train" / f"test{i}.txt"
+            label_path = yolo_dataset_dir / "labels" / "train" / f"test{i}.txt"
             with open(label_path, "w", encoding="utf_8") as f:
                 f.write(f"{i % 2} 0.5 0.5 0.3 0.4\n")
 
         # Check that warning is raised exactly once
         with pytest.warns(UserWarning, match="Standard detection format detected") as warning_list:
-            dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+            dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
 
             # Load all items
             for i in range(len(dataset)):
@@ -358,10 +358,10 @@ class TestYOLOOBBDataset:
         # Warning should be raised exactly once
         assert len(warning_list) == 1
 
-    def test_mixed_format_handling(self, mixed_format_dataset):
+    def test_mixed_format_handling(self, mixed_detection_dataset):
         """Test that dataset can handle files without both formats mixed in same label file."""
         # Load dataset
-        dataset = YOLOOBBDataset(mixed_format_dataset, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(mixed_detection_dataset, "train", img_size=640, num_classes=2)
 
         # Both images should load successfully
         assert len(dataset) == 2
@@ -374,14 +374,14 @@ class TestYOLOOBBDataset:
         assert labels1.shape[0] > 0
         assert labels2.shape[0] > 0
 
-    def test_invalid_format_handling(self, obb_dataset_dir, create_test_image):
+    def test_invalid_format_handling(self, yolo_dataset_dir, create_test_image):
         """Test that invalid label lines are skipped with debug warnings."""
         # Create test image
-        img_path = obb_dataset_dir / "images" / "train" / "test_invalid.jpg"
+        img_path = yolo_dataset_dir / "images" / "train" / "test_invalid.jpg"
         create_test_image(img_path)
 
         # Create label file with mixed valid and invalid lines
-        label_path = obb_dataset_dir / "labels" / "train" / "test_invalid.txt"
+        label_path = yolo_dataset_dir / "labels" / "train" / "test_invalid.txt"
         with open(label_path, "w", encoding="utf_8") as f:
             f.write("0 0.5 0.5 0.3 0.4\n")  # Valid standard detection
             f.write("0 0.1 0.2 0.3\n")  # Invalid - unsupported format (4 values)
@@ -391,24 +391,24 @@ class TestYOLOOBBDataset:
 
         # Check that warnings are raised for invalid formats
         with pytest.warns(UserWarning):
-            dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+            dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
             _, labels = dataset[0]
 
         # Should have 2 valid labels (1 standard + 1 OBB)
         assert labels.shape[0] == 2
 
-    def test_empty_label_file(self, obb_dataset_dir, create_test_image):
+    def test_empty_label_file(self, yolo_dataset_dir, create_test_image):
         """Test handling of empty label files."""
         # Create test image
-        img_path = obb_dataset_dir / "images" / "train" / "test_empty.jpg"
+        img_path = yolo_dataset_dir / "images" / "train" / "test_empty.jpg"
         create_test_image(img_path)
 
         # Create empty label file
-        label_path = obb_dataset_dir / "labels" / "train" / "test_empty.txt"
+        label_path = yolo_dataset_dir / "labels" / "train" / "test_empty.txt"
         label_path.touch()
 
         # Load dataset
-        dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
 
         # Get item - should return empty labels
         _, labels = dataset[0]
@@ -416,14 +416,14 @@ class TestYOLOOBBDataset:
         # Should have zero labels
         assert labels.shape == (0, 6)
 
-    def test_missing_label_file(self, obb_dataset_dir, create_test_image):
+    def test_missing_label_file(self, yolo_dataset_dir, create_test_image):
         """Test handling of missing label files."""
         # Create test image without corresponding label
-        img_path = obb_dataset_dir / "images" / "train" / "test_no_label.jpg"
+        img_path = yolo_dataset_dir / "images" / "train" / "test_no_label.jpg"
         create_test_image(img_path)
 
         # Load dataset
-        dataset = YOLOOBBDataset(obb_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
 
         # Get item - should return empty labels
         _, labels = dataset[0]
