@@ -11,11 +11,12 @@ assignees: ''
 <!-- A clear and concise description of what the bug is. -->
 
 **To Reproduce**
-Steps to reproduce the behavior:
 
-1. Run the command `...`
-2. Execute `....`
-3. Observe the output/error
+<!-- Steps to reproduce the behavior: -->
+
+1. <!-- Run the command `...` -->
+2. <!-- Execute `....` -->
+3. <!-- Observe the output/error -->
 
 **Expected behavior**
 
@@ -27,9 +28,11 @@ Steps to reproduce the behavior:
 
 **Environment (please complete the following information):**
 
-- OS: <!-- e.g. Ubuntu 20.04 -->
-- Python version: <!-- e.g. 3.10 -->
-- Package version: <!-- e.g. 0.1.0 -->
+<!-- - OS: [e.g. Ubuntu 20.04] -->
+
+<!-- - Python version: [e.g. 3.10] -->
+
+<!-- - Package version: [e.g. 0.1.0] -->
 
 **Additional context**
 
