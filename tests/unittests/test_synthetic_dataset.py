@@ -51,8 +51,8 @@ def test_class_modes(tmp_path, class_mode):
 
     for label_file in label_files:
         with open(label_file) as f:
-            for line in f:
-                line = line.strip()
+            lines = [ln.strip() for ln in f.readlines()]
+            for line in lines:
                 if line:  # Skip empty lines
                     parts = line.split()
                     cls = int(parts[0])
@@ -79,7 +79,9 @@ def test_label_format_validity(tmp_path):
 
     for label_file in label_files:
         with open(label_file) as f:
-            lines = [line.strip() for line in f if line.strip()]
+            lines = [ln.strip() for ln in f.readlines()]
+            # Filter out empty lines
+            lines = [ln for ln in lines if ln]
             # Each image should have 3 objects (default)
             assert len(lines) == 3
 
@@ -258,6 +260,8 @@ def test_custom_num_objects(tmp_path):
 
     for label_file in label_files:
         with open(label_file) as f:
-            lines = [line.strip() for line in f if line.strip()]
+            lines = [ln.strip() for ln in f.readlines()]
+            # Filter out empty lines
+            lines = [ln for ln in lines if ln]
             # Each image should have the specified number of objects
             assert len(lines) == num_objects
