@@ -11,8 +11,19 @@ from typing import Any
 import pytorch_lightning as pl
 import torch
 import yaml
+from ultralytics import YOLO
+from ultralytics.utils.nms import non_max_suppression
 
 from lit_yolo.data import obb_to_xyxy, xywh_to_xyxy
+
+# Optional dependency - torchmetrics may not be installed
+try:
+    from torchmetrics.detection import MeanAveragePrecision
+
+    TORCHMETRICS_AVAILABLE = True
+except ImportError:
+    TORCHMETRICS_AVAILABLE = False
+    MeanAveragePrecision = None
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +81,6 @@ class BaseLitYOLO(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        from ultralytics import YOLO
-
         yolo = YOLO(model_name)
         model_nc = yolo.model.yaml.get("nc", num_classes)
 
@@ -117,13 +126,11 @@ class BaseLitYOLO(pl.LightningModule):
 
         # Initialize metrics on the correct device
         if self.train_map is None:
-            try:
-                from torchmetrics.detection import MeanAveragePrecision
-
+            if TORCHMETRICS_AVAILABLE:
                 self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
                 self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
                 logger.info("Metrics enabled: train and val mAP")
-            except ImportError:
+            else:
                 logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
     def forward(self, x: torch.Tensor):
@@ -260,8 +267,6 @@ class LitYOLOOBB(BaseLitYOLO):
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Update metrics with OBB predictions."""
-        from ultralytics.utils.nms import non_max_suppression
-
         raw = preds[0] if isinstance(preds, (list, tuple)) else preds
         nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=True)
 
@@ -320,8 +325,6 @@ class LitYOLODet(BaseLitYOLO):
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Update metrics with standard detection predictions."""
-        from ultralytics.utils.nms import non_max_suppression
-
         raw = preds[0] if isinstance(preds, (list, tuple)) else preds
         nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=False)
 
