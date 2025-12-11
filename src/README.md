@@ -113,6 +113,55 @@ trainer = Trainer(max_epochs=100)
 trainer.fit(model, datamodule=dm)
 ```
 
+### Creating a Synthetic Dataset
+
+For testing and validation, you can create a synthetic dataset with basic geometric shapes:
+
+```python
+from lit_yolo import BaseYOLODataModule
+from pathlib import Path
+
+# Create synthetic dataset with shape-based classes (square, triangle, circle)
+dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    root=Path("./synthetic_shapes"),
+    num_train=100,      # Number of training images
+    num_val=20,         # Number of validation images
+    img_size=640,       # Image size
+    class_mode="shape", # Classes based on shapes (3 classes)
+    seed=42             # Random seed for reproducibility
+)
+
+# Or create with color-based classes (red, green, blue)
+dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    root=Path("./synthetic_colors"),
+    num_train=100,
+    num_val=20,
+    class_mode="color", # Classes based on colors (3 classes)
+    seed=42
+)
+
+# Use the synthetic dataset for training
+from lit_yolo import DetDataModule, LitYOLODet
+from pytorch_lightning import Trainer
+
+dm = DetDataModule(data=str(dataset_path), batch_size=8, num_classes=3)
+model = LitYOLODet(model_name="yolo11n.pt", num_classes=3)
+
+trainer = Trainer(max_epochs=10)
+trainer.fit(model, datamodule=dm)
+```
+
+The synthetic dataset feature generates:
+- Images with three basic shapes: square, triangle, and circle
+- Each shape rendered in a different color: red, green, and blue
+- Valid YOLO format labels for all objects
+- Both training and validation splits
+
+This is useful for:
+- Testing the implementation is working correctly
+- Verifying that metrics and loss are converging
+- Quick validation of changes without downloading large datasets
+
 ## Package Structure
 
 ```
@@ -166,6 +215,7 @@ All values are normalized between 0 and 1.
 - ✅ PyTorch Lightning integration
 - ✅ Modular package structure
 - ✅ Standard detection and OBB support
+- ✅ Synthetic dataset generation for testing and validation
 
 ### Dataset Format Support
 
