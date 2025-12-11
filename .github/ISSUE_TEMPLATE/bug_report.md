@@ -12,11 +12,13 @@ assignees: ''
 
 **To Reproduce**
 
-<!-- Steps to reproduce the behavior: -->
+<!--
+Steps to reproduce the behavior:
 
-1. <!-- Run the command `...` -->
-2. <!-- Execute `....` -->
-3. <!-- Observe the output/error -->
+1. Run the command `...`
+2. Execute `....`
+3. Observe the output/error
+-->
 
 **Expected behavior**
 
@@ -28,11 +30,11 @@ assignees: ''
 
 **Environment (please complete the following information):**
 
-<!-- - OS: [e.g. Ubuntu 20.04] -->
-
-<!-- - Python version: [e.g. 3.10] -->
-
-<!-- - Package version: [e.g. 0.1.0] -->
+<!--
+- OS: [e.g. Ubuntu 20.04]
+- Python version: [e.g. 3.10]
+- Package version: [e.g. 0.1.0]
+-->
 
 **Additional context**
 
