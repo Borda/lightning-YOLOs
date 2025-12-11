@@ -73,7 +73,7 @@ class BaseLitYOLO(pl.LightningModule):
         from ultralytics import YOLO
 
         yolo = YOLO(model_name)
-        model_nc = yolo.model.yaml.get("nc", default_nc)
+        model_nc = yolo.model.yaml.get("nc", num_classes)
 
         if num_classes != model_nc:
             cfg = {**yolo.model.yaml, "nc": num_classes}

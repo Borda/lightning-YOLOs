@@ -198,11 +198,6 @@ class BaseYOLODataset(Dataset):
         - _load_labels(self, idx: int) -> torch.Tensor
             Loads and returns the label(s) for the image at the given index, in the expected format.
 
-    Args:
-        root: Root directory containing 'images/' and 'labels/' subdirectories.
-        split: Dataset split ('train', 'val', or 'test').
-        img_size: Target image size for resizing (e.g., 640).
-        num_classes: Number of object classes in the dataset.
 
     Raises:
         ValueError: If img_size is not a positive integer or no images found.
