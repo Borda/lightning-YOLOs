@@ -4,6 +4,7 @@ Data utilities, dataset, and data module for YOLO-OBB.
 
 import logging
 import math
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -244,7 +245,7 @@ class YOLOOBBDataset(Dataset):
                     cls = int(parts[0])
                     if not (0 <= cls < self.num_classes):
                         continue
-                    x, y, w, h = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+                    x, y, w, h = map(float, parts[1:5])
                     # Append with rotation = 0
                     labels.append([cls, x, y, w, h, 0.0])
                 except ValueError as e:
@@ -264,18 +265,22 @@ class YOLOOBBDataset(Dataset):
             else:
                 # Skip invalid formats
                 if parts:  # Only warn if line is not empty
-                    logger.warning(
+                    warnings.warn(
                         f"Unsupported format in {path}: expected 5 values (standard detection) "
-                        f"or 9 values (OBB), got {len(parts)} values"
+                        f"or 9 values (OBB), got {len(parts)} values",
+                        UserWarning,
+                        stacklevel=2,
                     )
                 continue
 
-        # Log warning only once per dataset to avoid log noise
+        # Warn only once per dataset to avoid log noise
         if has_standard_detection and labels and not self._standard_format_warned:
-            logger.warning(
+            warnings.warn(
                 "Standard detection format detected. "
                 "Using axis-aligned bounding boxes with rotation set to 0. "
-                "For optimal OBB training, please provide annotations in OBB format (8 corner coordinates)."
+                "For optimal OBB training, please provide annotations in OBB format (8 corner coordinates).",
+                UserWarning,
+                stacklevel=2,
             )
             self._standard_format_warned = True
 
