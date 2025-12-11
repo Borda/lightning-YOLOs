@@ -183,3 +183,44 @@ def train_detect(
 
     trainer.fit(lightning_model, datamodule=dm)
     logger.info(f"Done! Checkpoints: {output / 'checkpoints'}")
+
+
+def create_synthetic_dataset(
+    output: str = "./synthetic_dataset",
+    num_samples: int = 100,
+    split_ratio: float = 0.8,
+    img_size: int = 640,
+    class_mode: str = "shape",
+    num_objects: int = 3,
+    min_size_ratio: float = 0.1,
+    max_size_ratio: float = 0.2,
+    seed: int = 42,
+) -> None:
+    """Create a synthetic dataset with geometric shapes for testing.
+
+    Args:
+        output: Output directory for the dataset.
+        num_samples: Total number of samples to generate.
+        split_ratio: Ratio of training samples (e.g., 0.8 = 80% train, 20% val).
+        img_size: Size of generated images (square).
+        class_mode: Classification mode - "shape" or "color".
+        num_objects: Number of objects to place in each image.
+        min_size_ratio: Minimum object size as ratio of image size.
+        max_size_ratio: Maximum object size as ratio of image size.
+        seed: Random seed for reproducibility.
+    """
+    from lit_yolo.data import BaseYOLODataModule
+
+    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+        root=output,
+        num_samples=num_samples,
+        split_ratio=split_ratio,
+        img_size=img_size,
+        class_mode=class_mode,
+        num_objects=num_objects,
+        min_size_ratio=min_size_ratio,
+        max_size_ratio=max_size_ratio,
+        seed=seed,
+    )
+
+    logger.info(f"Synthetic dataset created successfully at: {dataset_path}")

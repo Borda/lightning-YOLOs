@@ -6,7 +6,7 @@ import logging
 import math
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import cv2
 import numpy as np
@@ -15,6 +15,21 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# SYNTHETIC DATASET CONSTANTS
+# =============================================================================
+
+# Available shapes for synthetic dataset generation
+SYNTHETIC_SHAPES = ["square", "triangle", "circle"]
+
+# Available colors for synthetic dataset generation (RGB format)
+SYNTHETIC_COLORS = {
+    "red": (255, 0, 0),
+    "green": (0, 255, 0),
+    "blue": (0, 0, 255),
+}
 
 
 # =============================================================================
@@ -176,6 +191,114 @@ def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     y2 = cy + h / 2
 
     return torch.stack([x1, y1, x2, y2], dim=1)
+
+
+# =============================================================================
+# SYNTHETIC DATASET GENERATION FUNCTIONS
+# =============================================================================
+
+
+def draw_synthetic_shape(img: np.ndarray, shape: str, color: tuple, center: tuple, size: int) -> np.ndarray:
+    """Draw a geometric shape on an image.
+
+    Args:
+        img: Input image array to draw on.
+        shape: Shape to draw ("square", "triangle", or "circle").
+        color: RGB color tuple.
+        center: Center position (cx, cy).
+        size: Size of the shape.
+
+    Returns:
+        Image with drawn shape.
+    """
+    cx, cy = center
+    if shape == "square":
+        # Draw filled square
+        half_size = size // 2
+        pt1 = (cx - half_size, cy - half_size)
+        pt2 = (cx + half_size, cy + half_size)
+        cv2.rectangle(img, pt1, pt2, color, -1)
+    elif shape == "triangle":
+        # Draw filled triangle (equilateral pointing up)
+        height = int(size * 0.866)  # sqrt(3)/2 for equilateral triangle
+        pt1 = (cx, cy - 2 * height // 3)
+        pt2 = (cx - size // 2, cy + height // 3)
+        pt3 = (cx + size // 2, cy + height // 3)
+        pts = np.array([pt1, pt2, pt3], np.int32)
+        cv2.fillPoly(img, [pts], color)
+    elif shape == "circle":
+        # Draw filled circle
+        cv2.circle(img, (cx, cy), size // 2, color, -1)
+    return img
+
+
+def generate_synthetic_sample(
+    img_size: int,
+    num_objects: int,
+    class_mode: Literal["shape", "color"],
+    min_size_ratio: float,
+    max_size_ratio: float,
+) -> tuple[np.ndarray, list[tuple[int, float, float, float, float]]]:
+    """Generate a single synthetic image with labeled objects.
+
+    Args:
+        img_size: Size of the image (square).
+        num_objects: Number of objects to generate.
+        class_mode: Classification mode ("shape" or "color").
+        min_size_ratio: Minimum object size as ratio of image size.
+        max_size_ratio: Maximum object size as ratio of image size.
+
+    Returns:
+        Tuple of (image, labels) where labels is a list of (class, cx, cy, w, h) tuples.
+    """
+    # Create blank image with gray background
+    img = np.ones((img_size, img_size, 3), dtype=np.uint8) * 128
+
+    labels = []
+    color_names = list(SYNTHETIC_COLORS.keys())
+
+    # Generate objects (cycling through shapes and colors)
+    for i in range(num_objects):
+        shape = SYNTHETIC_SHAPES[i % len(SYNTHETIC_SHAPES)]
+        color_name = color_names[i % len(color_names)]
+        color = SYNTHETIC_COLORS[color_name]
+
+        # Determine class based on mode
+        if class_mode == "shape":
+            cls = SYNTHETIC_SHAPES.index(shape)
+        else:  # class_mode == "color"
+            cls = color_names.index(color_name)
+
+        # Random position and size - ensure valid ranges even for small image sizes
+        min_size = max(1, int(img_size * min_size_ratio))
+        max_size = max(min_size + 1, int(img_size * max_size_ratio))
+        obj_size = np.random.randint(min_size, max_size)
+        margin = obj_size
+        cx = np.random.randint(margin, img_size - margin)
+        cy = np.random.randint(margin, img_size - margin)
+
+        # Draw shape
+        img = draw_synthetic_shape(img, shape, color, (cx, cy), obj_size)
+
+        # Create bounding box (normalized YOLO format: cx, cy, w, h)
+        # Add padding to the bounding box to ensure it contains the entire shape
+        bbox_padding_factor = 1.2
+        box_w = (obj_size * bbox_padding_factor) / img_size
+        box_h = (obj_size * bbox_padding_factor) / img_size
+        box_cx = cx / img_size
+        box_cy = cy / img_size
+
+        # Ensure box is within image bounds
+        # Clamp width and height to not exceed image boundaries
+        box_w = min(box_w, 1.0)
+        box_h = min(box_h, 1.0)
+        # Clamp center coordinates to keep box within image
+        box_cx = max(box_w / 2, min(1.0 - box_w / 2, box_cx))
+        box_cy = max(box_h / 2, min(1.0 - box_h / 2, box_cy))
+
+        labels.append((cls, box_cx, box_cy, box_w, box_h))
+
+    return img, labels
 
 
 # =============================================================================
@@ -480,30 +603,33 @@ class BaseYOLODataModule(LightningDataModule):
     @staticmethod
     def create_synthetic_dataset(
         root: Path | str,
-        num_train: int = 100,
-        num_val: int = 20,
+        num_samples: int = 100,
+        split_ratio: float = 0.8,
         img_size: int = 640,
-        class_mode: str = "shape",
+        class_mode: Literal["shape", "color"] = "shape",
+        num_objects: int = 3,
+        min_size_ratio: float = 0.1,
+        max_size_ratio: float = 0.2,
         seed: int = 42,
     ) -> Path:
         """Create a synthetic dataset with basic geometric shapes for testing.
 
-        Generates images containing three basic shapes (square, triangle, circle) with different colors
+        Generates images containing basic shapes (square, triangle, circle) with different colors
         (red, green, blue). Classes can be defined by shape or color depending on class_mode.
 
         Args:
             root: Root directory where dataset will be created.
-            num_train: Number of training images to generate.
-            num_val: Number of validation images to generate.
+            num_samples: Total number of samples to generate.
+            split_ratio: Ratio of training samples (e.g., 0.8 means 80% train, 20% val).
             img_size: Size of generated images (square).
-            class_mode: Classification mode - "shape" (3 shape classes) or "color" (3 color classes).
+            class_mode: Classification mode - "shape" or "color".
+            num_objects: Number of objects to place in each image.
+            min_size_ratio: Minimum object size as ratio of image size (default 0.1 = 10%).
+            max_size_ratio: Maximum object size as ratio of image size (default 0.2 = 20%).
             seed: Random seed for reproducibility.
 
         Returns:
             Path to the created dataset root directory.
-
-        Raises:
-            ValueError: If class_mode is not "shape" or "color".
 
         Examples:
             >>> import tempfile
@@ -511,126 +637,59 @@ class BaseYOLODataModule(LightningDataModule):
             >>> # Create synthetic dataset
             >>> with tempfile.TemporaryDirectory() as tmpdir:
             ...     root = Path(tmpdir) / "synthetic"
-            ...     dataset_path = BaseYOLODataModule.create_synthetic_dataset(root, num_train=5, num_val=2)
-            ...     # Verify structure
-            ...     assert (dataset_path / "images" / "train").exists()
-            ...     assert (dataset_path / "labels" / "train").exists()
-            ...     assert len(list((dataset_path / "images" / "train").glob("*.jpg"))) == 5
-            ...     assert len(list((dataset_path / "images" / "val").glob("*.jpg"))) == 2
+            ...     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+            ...         root, num_samples=10, split_ratio=0.7
+            ...     )
+            ...     # Check structure
+            ...     (dataset_path / "images" / "train").exists()
+            True
+            ...     (dataset_path / "labels" / "train").exists()
+            True
+            ...     len(list((dataset_path / "images" / "train").glob("*.jpg")))
+            7
+            ...     len(list((dataset_path / "images" / "val").glob("*.jpg")))
+            3
         """
-        if class_mode not in ["shape", "color"]:
-            raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-
         root = Path(root)
         np.random.seed(seed)
 
-        # Define shapes and colors
-        shapes = ["square", "triangle", "circle"]
-        colors = {
-            "red": (255, 0, 0),
-            "green": (0, 255, 0),
-            "blue": (0, 0, 255),
-        }
-        color_names = list(colors.keys())
+        # Calculate split
+        num_train = int(num_samples * split_ratio)
+        num_val = num_samples - num_train
 
         # Create directory structure
         for split in ["train", "val"]:
             (root / "images" / split).mkdir(parents=True, exist_ok=True)
             (root / "labels" / split).mkdir(parents=True, exist_ok=True)
 
-        def draw_shape(img: np.ndarray, shape: str, color: tuple, center: tuple, size: int) -> np.ndarray:
-            """Draw a shape on the image."""
-            cx, cy = center
-            if shape == "square":
-                # Draw filled square
-                half_size = size // 2
-                pt1 = (cx - half_size, cy - half_size)
-                pt2 = (cx + half_size, cy + half_size)
-                cv2.rectangle(img, pt1, pt2, color, -1)
-            elif shape == "triangle":
-                # Draw filled triangle (equilateral pointing up)
-                height = int(size * 0.866)  # sqrt(3)/2 for equilateral triangle
-                pt1 = (cx, cy - 2 * height // 3)
-                pt2 = (cx - size // 2, cy + height // 3)
-                pt3 = (cx + size // 2, cy + height // 3)
-                pts = np.array([pt1, pt2, pt3], np.int32)
-                cv2.fillPoly(img, [pts], color)
-            elif shape == "circle":
-                # Draw filled circle
-                cv2.circle(img, (cx, cy), size // 2, color, -1)
-            return img
+        # Generate datasets for both splits
+        for split, num_imgs in [("train", num_train), ("val", num_val)]:
+            logger.info(f"Generating {num_imgs} {split} images...")
+            for i in range(num_imgs):
+                img_path = root / "images" / split / f"img_{i:05d}.jpg"
+                label_path = root / "labels" / split / f"img_{i:05d}.txt"
 
-        def generate_image_with_labels(img_path: Path, label_path: Path, num_objects: int = 3):
-            """Generate a single image with objects and corresponding labels."""
-            # Create blank image with gray background
-            img = np.ones((img_size, img_size, 3), dtype=np.uint8) * 128
+                # Generate image and labels
+                img, labels = generate_synthetic_sample(
+                    img_size=img_size,
+                    num_objects=num_objects,
+                    class_mode=class_mode,
+                    min_size_ratio=min_size_ratio,
+                    max_size_ratio=max_size_ratio,
+                )
 
-            labels = []
+                # Save image
+                cv2.imwrite(str(img_path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
-            # Generate objects (one of each shape with different colors)
-            for i in range(num_objects):
-                shape = shapes[i % len(shapes)]
-                color_name = color_names[i % len(color_names)]
-                color = colors[color_name]
+                # Save labels
+                with open(label_path, "w") as f:
+                    for cls, cx, cy, w, h in labels:
+                        f.write(f"{cls} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
 
-                # Determine class based on mode
-                if class_mode == "shape":
-                    cls = shapes.index(shape)
-                else:  # class_mode == "color"
-                    cls = color_names.index(color_name)
-
-                # Random position and size - ensure valid ranges even for small image sizes
-                min_size = max(1, img_size // 10)
-                max_size = max(min_size + 1, img_size // 5)
-                obj_size = np.random.randint(min_size, max_size)
-                margin = obj_size
-                cx = np.random.randint(margin, img_size - margin)
-                cy = np.random.randint(margin, img_size - margin)
-
-                # Draw shape
-                img = draw_shape(img, shape, color, (cx, cy), obj_size)
-
-                # Create bounding box (normalized YOLO format: cx, cy, w, h)
-                # Add padding to the bounding box to ensure it contains the entire shape
-                bbox_padding_factor = 1.2
-                box_w = (obj_size * bbox_padding_factor) / img_size
-                box_h = (obj_size * bbox_padding_factor) / img_size
-                box_cx = cx / img_size
-                box_cy = cy / img_size
-
-                # Ensure box is within image bounds
-                # Clamp width and height to not exceed image boundaries
-                box_w = min(box_w, 1.0)
-                box_h = min(box_h, 1.0)
-                # Clamp center coordinates to keep box within image
-                box_cx = max(box_w / 2, min(1.0 - box_w / 2, box_cx))
-                box_cy = max(box_h / 2, min(1.0 - box_h / 2, box_cy))
-
-                labels.append(f"{cls} {box_cx:.6f} {box_cy:.6f} {box_w:.6f} {box_h:.6f}")
-
-            # Save image
-            cv2.imwrite(str(img_path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-
-            # Save labels
-            with open(label_path, "w") as f:
-                f.write("\n".join(labels) + "\n")
-
-        # Generate training images
-        logger.info(f"Generating {num_train} training images...")
-        for i in range(num_train):
-            img_path = root / "images" / "train" / f"img_{i:05d}.jpg"
-            label_path = root / "labels" / "train" / f"img_{i:05d}.txt"
-            generate_image_with_labels(img_path, label_path)
-
-        # Generate validation images
-        logger.info(f"Generating {num_val} validation images...")
-        for i in range(num_val):
-            img_path = root / "images" / "val" / f"img_{i:05d}.jpg"
-            label_path = root / "labels" / "val" / f"img_{i:05d}.txt"
-            generate_image_with_labels(img_path, label_path)
-
+        class_names = SYNTHETIC_SHAPES if class_mode == "shape" else list(SYNTHETIC_COLORS.keys())
         logger.info(f"Synthetic dataset created at {root}")
-        logger.info(f"Class mode: {class_mode} (3 classes: {', '.join(shapes if class_mode == 'shape' else color_names)})")
+        logger.info(f"Class mode: {class_mode} (3 classes: {', '.join(class_names)})")
+        logger.info(f"Train: {num_train} images, Val: {num_val} images")
 
         return root
 

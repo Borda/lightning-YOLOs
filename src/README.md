@@ -115,41 +115,42 @@ trainer.fit(model, datamodule=dm)
 
 ### Creating a Synthetic Dataset
 
-For testing and validation, you can create a synthetic dataset with basic geometric shapes:
+For testing and validation, you can create a synthetic dataset with basic geometric shapes using the CLI:
 
-```python
-from lit_yolo import BaseYOLODataModule
-from pathlib import Path
+```bash
+# Create synthetic dataset with default settings (shape-based classification)
+lit-yolo create dataset --output ./synthetic_dataset
 
-# Create synthetic dataset with shape-based classes (square, triangle, circle)
-dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-    root=Path("./synthetic_shapes"),
-    num_train=100,      # Number of training images
-    num_val=20,         # Number of validation images
-    img_size=640,       # Image size
-    class_mode="shape", # Classes based on shapes (3 classes)
-    seed=42             # Random seed for reproducibility
-)
+# Create with custom settings
+lit-yolo create dataset \
+    --output ./synthetic_shapes \
+    --num_samples 150 \
+    --split_ratio 0.8 \
+    --img_size 640 \
+    --class_mode shape \
+    --num_objects 3 \
+    --seed 42
 
-# Or create with color-based classes (red, green, blue)
-dataset_path = BaseYOLODataModule.create_synthetic_dataset(
-    root=Path("./synthetic_colors"),
-    num_train=100,
-    num_val=20,
-    class_mode="color", # Classes based on colors (3 classes)
-    seed=42
-)
+# Create with color-based classification
+lit-yolo create dataset \
+    --output ./synthetic_colors \
+    --class_mode color \
+    --num_samples 100
 
-# Use the synthetic dataset for training
-from lit_yolo import DetDataModule, LitYOLODet
-from pytorch_lightning import Trainer
-
-dm = DetDataModule(data=str(dataset_path), batch_size=8, num_classes=3)
-model = LitYOLODet(model_name="yolo11n.pt", num_classes=3)
-
-trainer = Trainer(max_epochs=10)
-trainer.fit(model, datamodule=dm)
+# Then use the synthetic dataset for training
+lit-yolo train detect --data ./synthetic_dataset --model yolo11n.pt --epochs 10
 ```
+
+**Parameters:**
+- `--output`: Output directory for the dataset (default: `./synthetic_dataset`)
+- `--num_samples`: Total number of samples to generate (default: `100`)
+- `--split_ratio`: Train/val split ratio, e.g., 0.8 = 80% train, 20% val (default: `0.8`)
+- `--img_size`: Size of generated square images (default: `640`)
+- `--class_mode`: Classification mode - `shape` (3 shape classes) or `color` (3 color classes) (default: `shape`)
+- `--num_objects`: Number of objects per image (default: `3`)
+- `--min_size_ratio`: Minimum object size as ratio of image size (default: `0.1`)
+- `--max_size_ratio`: Maximum object size as ratio of image size (default: `0.2`)
+- `--seed`: Random seed for reproducibility (default: `42`)
 
 The synthetic dataset feature generates:
 - Images with three basic shapes: square, triangle, and circle

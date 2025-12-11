@@ -17,7 +17,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from lit_yolo.training import train_detect, train_obb
+from lit_yolo.training import create_synthetic_dataset, train_detect, train_obb
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,13 @@ def main():
         sys.exit(1)
 
     # Use dictionary-based CLI for subcommands
-    CLI({"train": {"obb": train_obb, "detect": train_detect}}, as_positional=False)
+    CLI(
+        {
+            "train": {"obb": train_obb, "detect": train_detect},
+            "create": {"dataset": create_synthetic_dataset},
+        },
+        as_positional=False,
+    )
 
 
 if __name__ == "__main__":
