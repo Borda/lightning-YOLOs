@@ -183,8 +183,27 @@ def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
 # =============================================================================
 
 
-class YOLOOBBDataset(Dataset):
-    """Dataset for YOLO OBB format (4-corner annotations)."""
+class BaseYOLODataset(Dataset):
+    """
+    Abstract base class for YOLO-style datasets, providing common functionality for image loading,
+    preprocessing, and letterbox resizing.
+
+    This class is intended to be subclassed for specific YOLO dataset variants (e.g., oriented bounding box, 
+    custom label formats). It handles:
+        - Discovering and loading images from a directory structure (expects 'images/' and 'labels/' subdirs).
+        - Preprocessing images (resizing, normalization, letterbox padding).
+        - Providing a standard __getitem__ interface returning (image, label) pairs as tensors.
+
+    Subclasses must implement:
+        - _load_labels(self, idx: int) -> torch.Tensor
+            Loads and returns the label(s) for the image at the given index, in the expected format.
+
+    Example:
+        class MyYOLODataset(BaseYOLODataset):
+            def _load_labels(self, idx: int) -> torch.Tensor:
+                # Custom label loading logic here
+                ...
+    """
 
     FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
 
@@ -205,9 +224,22 @@ class YOLOOBBDataset(Dataset):
         logger.info(f"[{split}] Loaded {len(self.img_paths)} images")
 
     def __len__(self) -> int:
+        """Return the number of images in the dataset."""
         return len(self.img_paths)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """Get a single item from the dataset.
+
+        Args:
+            idx: Index of the item to retrieve.
+
+        Returns:
+            Tuple of (image, labels) where image is a tensor of shape (3, img_size, img_size)
+            with values in [0, 1] and labels format depends on the subclass.
+
+        Raises:
+            IndexError: If image fails to load.
+        """
         img_path = self.img_paths[idx]
 
         img = cv2.imread(str(img_path))
@@ -226,9 +258,45 @@ class YOLOOBBDataset(Dataset):
             labels[:, 3] *= new_w / self.img_size
             labels[:, 4] *= new_h / self.img_size
 
+        # Convert to tensor: HWC -> CHW format and normalize to [0, 1]
         return torch.from_numpy(img).permute(2, 0, 1).float().div_(255.0), labels
 
     def _load_labels(self, path: Path) -> torch.Tensor:
+        """Load labels from file. Must be implemented by subclasses.
+
+        Args:
+            path: Path to the label file.
+
+        Returns:
+            Tensor of labels in format specific to the subclass.
+        """
+        raise NotImplementedError("Subclasses must implement _load_labels")
+
+    def _letterbox(self, img: np.ndarray) -> tuple[np.ndarray, float, tuple[int, int]]:
+        """Apply letterbox resizing to maintain aspect ratio.
+
+        Args:
+            img: Input image as numpy array.
+
+        Returns:
+            Tuple of (padded_image, scale, (pad_w, pad_h))
+        """
+        h, w = img.shape[:2]
+        scale = min(self.img_size / h, self.img_size / w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        img_resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+        pad_w, pad_h = (self.img_size - new_w) // 2, (self.img_size - new_h) // 2
+        img_padded = np.full((self.img_size, self.img_size, 3), 114, dtype=np.uint8)
+        img_padded[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = img_resized
+        return img_padded, scale, (pad_w, pad_h)
+
+
+class YOLOOBBDataset(BaseYOLODataset):
+    """Dataset for YOLO OBB format (4-corner annotations)."""
+
+    def _load_labels(self, path: Path) -> torch.Tensor:
+        """Load OBB labels: class + 8 corner coordinates -> (class, cx, cy, w, h, angle)."""
         if not path.exists():
             return torch.zeros((0, 6), dtype=torch.float32)
 
@@ -286,92 +354,9 @@ class YOLOOBBDataset(Dataset):
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
-    def _letterbox(self, img: np.ndarray) -> tuple[np.ndarray, float, tuple[int, int]]:
-        h, w = img.shape[:2]
-        scale = min(self.img_size / h, self.img_size / w)
-        new_w, new_h = int(w * scale), int(h * scale)
-        img_resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
 
-        pad_w, pad_h = (self.img_size - new_w) // 2, (self.img_size - new_h) // 2
-        img_padded = np.full((self.img_size, self.img_size, 3), 114, dtype=np.uint8)
-        img_padded[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = img_resized
-        return img_padded, scale, (pad_w, pad_h)
-
-
-# =============================================================================
-# DATA MODULE
-# =============================================================================
-
-
-class YOLODetDataset(Dataset):
+class YOLODetDataset(BaseYOLODataset):
     """Dataset for standard YOLO detection format (axis-aligned bounding boxes)."""
-
-    FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
-
-    def __init__(self, root: Path, split: str, img_size: int, num_classes: int):
-        """Initialize the YOLODetDataset.
-
-        Args:
-            root: Root directory containing 'images/' and 'labels/' subdirectories.
-            split: Dataset split ('train', 'val', or 'test').
-            img_size: Target image size for resizing (e.g., 640).
-            num_classes: Number of object classes in the dataset.
-
-        Raises:
-            ValueError: If img_size is not a positive integer or no images found.
-            FileNotFoundError: If image directory does not exist.
-        """
-        if not isinstance(img_size, int) or img_size <= 0:
-            raise ValueError(f"img_size must be a positive integer, got {img_size}")
-        self.img_size, self.num_classes = img_size, num_classes
-        self.img_dir = root / "images" / split
-        self.label_dir = root / "labels" / split
-
-        if not self.img_dir.exists():
-            raise FileNotFoundError(f"Image directory not found: {self.img_dir}")
-
-        self.img_paths = sorted(p for p in self.img_dir.iterdir() if p.suffix.lower() in self.FORMATS)
-        if not self.img_paths:
-            raise ValueError(f"No images found in {self.img_dir}")
-        logger.info(f"[{split}] Loaded {len(self.img_paths)} images")
-
-    def __len__(self) -> int:
-        """Return the number of images in the dataset."""
-        return len(self.img_paths)
-
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        """Get a single item from the dataset.
-
-        Args:
-            idx: Index of the item to retrieve.
-
-        Returns:
-            Tuple of (image, labels) where:
-                - image: Tensor of shape (3, img_size, img_size) with values in [0, 1].
-                - labels: Tensor of shape (N, 5) with columns [class, cx, cy, w, h].
-
-        Raises:
-            IndexError: If image fails to load.
-        """
-        img_path = self.img_paths[idx]
-
-        img = cv2.imread(str(img_path))
-        if img is None:
-            raise IndexError(f"Failed to load: {img_path}")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        orig_h, orig_w = img.shape[:2]
-
-        labels = self._load_labels(self.label_dir / f"{img_path.stem}.txt")
-        img, scale, (pad_w, pad_h) = self._letterbox(img)
-
-        if labels.numel() > 0:
-            new_w, new_h = orig_w * scale, orig_h * scale
-            labels[:, 1] = (labels[:, 1] * new_w + pad_w) / self.img_size
-            labels[:, 2] = (labels[:, 2] * new_h + pad_h) / self.img_size
-            labels[:, 3] *= new_w / self.img_size
-            labels[:, 4] *= new_h / self.img_size
-
-        return torch.from_numpy(img).permute(2, 0, 1).float().div_(255.0), labels
 
     def _load_labels(self, path: Path) -> torch.Tensor:
         """Load standard YOLO format: class x_center y_center width height (normalized)."""
@@ -403,29 +388,48 @@ class YOLODetDataset(Dataset):
 
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 5), dtype=torch.float32)
 
-    def _letterbox(self, img: np.ndarray) -> tuple[np.ndarray, float, tuple[int, int]]:
-        h, w = img.shape[:2]
-        scale = min(self.img_size / h, self.img_size / w)
-        new_w, new_h = int(w * scale), int(h * scale)
-        img_resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-
-        pad_w, pad_h = (self.img_size - new_w) // 2, (self.img_size - new_h) // 2
-        img_padded = np.full((self.img_size, self.img_size, 3), 114, dtype=np.uint8)
-        img_padded[pad_h : pad_h + new_h, pad_w : pad_w + new_w] = img_resized
-        return img_padded, scale, (pad_w, pad_h)
-
 
 # =============================================================================
 # DATA MODULES
 # =============================================================================
 
 
-class OBBDataModule(LightningDataModule):
-    """Lightning DataModule for OBB datasets - handles all data setup."""
+class BaseYOLODataModule(LightningDataModule):
+    """
+    Base Lightning DataModule for YOLO datasets.
+
+    This abstract base class provides common functionality for YOLO dataset DataModules,
+    including dataloader configuration, automatic class detection, and standardized
+    interface for training and validation data loading.
+
+    Subclasses must implement the following methods:
+        - setup(stage): Prepare and assign self.train_ds and self.val_ds datasets for the given stage.
+        - _collate(batch): Collate function for batching samples, used by the dataloaders.
+
+    Common functionality provided:
+        - Dataloader creation for training and validation with consistent configuration.
+        - Automatic detection of the number of classes from the dataset if not provided.
+        - Standardized interface for extending to new YOLO variants (e.g., OBB, detection).
+
+    To extend for a new YOLO variant, subclass this class and implement the required methods.
+    """
+
+    train_ds: Dataset | None = None
+    val_ds: Dataset | None = None
+    test_ds: Dataset | None = None
 
     def __init__(
         self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None
     ):
+        """Initialize base YOLO data module.
+
+        Args:
+            data: Path to dataset root directory.
+            img_size: Target image size.
+            batch_size: Batch size for dataloaders.
+            num_workers: Number of workers for dataloaders.
+            num_classes: Number of classes (auto-detected if None).
+        """
         super().__init__()
         self.data_root = Path(data)
         self.img_size = img_size
@@ -435,16 +439,17 @@ class OBBDataModule(LightningDataModule):
 
     @property
     def num_classes(self) -> int:
+        """Get number of classes, auto-detecting if not provided."""
         if self._num_classes is None:
             self._num_classes = determine_num_classes(self.data_root)
         return self._num_classes
 
     def setup(self, stage: str | None = None):
-        nc = self.num_classes  # Triggers detection if needed
-        self.train_ds = YOLOOBBDataset(self.data_root, "train", self.img_size, nc)
-        self.val_ds = YOLOOBBDataset(self.data_root, "val", self.img_size, nc)
+        """Setup datasets. Must be implemented by subclasses."""
+        raise NotImplementedError("Subclasses must implement setup")
 
     def train_dataloader(self) -> DataLoader:
+        """Create training dataloader."""
         return DataLoader(
             self.train_ds,
             batch_size=self.batch_size,
@@ -457,6 +462,7 @@ class OBBDataModule(LightningDataModule):
         )
 
     def val_dataloader(self) -> DataLoader:
+        """Create validation dataloader."""
         return DataLoader(
             self.val_ds,
             batch_size=self.batch_size,
@@ -467,8 +473,23 @@ class OBBDataModule(LightningDataModule):
             persistent_workers=self.num_workers > 0,
         )
 
+    def _collate(self, batch: list[tuple]) -> dict[str, Any]:
+        """Collate function for batching. Must be implemented by subclasses."""
+        raise NotImplementedError("Subclasses must implement _collate")
+
+
+class OBBDataModule(BaseYOLODataModule):
+    """Lightning DataModule for OBB datasets - handles all data setup."""
+
+    def setup(self, stage: str | None = None):
+        """Setup OBB datasets for training and validation."""
+        nc = self.num_classes  # Triggers detection if needed
+        self.train_ds = YOLOOBBDataset(self.data_root, "train", self.img_size, nc)
+        self.val_ds = YOLOOBBDataset(self.data_root, "val", self.img_size, nc)
+
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
+        """Collate function for OBB batches with 5 bbox parameters (cx, cy, w, h, angle)."""
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -487,63 +508,18 @@ class OBBDataModule(LightningDataModule):
         }
 
 
-class DetDataModule(LightningDataModule):
+class DetDataModule(BaseYOLODataModule):
     """Lightning DataModule for standard detection datasets - handles all data setup."""
 
-    def __init__(
-        self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None
-    ):
-        super().__init__()
-        self.data_root = Path(data)
-        self.img_size = img_size
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self._num_classes = num_classes
-
-    @property
-    def num_classes(self) -> int:
-        if self._num_classes is None:
-            self._num_classes = determine_num_classes(self.data_root)
-        return self._num_classes
-
     def setup(self, stage: str | None = None):
+        """Setup standard detection datasets for training and validation."""
         nc = self.num_classes  # Triggers detection if needed
         self.train_ds = YOLODetDataset(self.data_root, "train", self.img_size, nc)
         self.val_ds = YOLODetDataset(self.data_root, "val", self.img_size, nc)
 
-    def train_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.train_ds,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=True,
-            collate_fn=self._collate,
-            persistent_workers=self.num_workers > 0,
-        )
-
-    def val_dataloader(self) -> DataLoader:
-        return DataLoader(
-            self.val_ds,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            collate_fn=self._collate,
-            persistent_workers=self.num_workers > 0,
-        )
-
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for standard detection batches.
-
-        Returns dict with:
-            img: stacked images
-            batch_idx: batch indices for each bbox
-            cls: class labels
-            bboxes: bounding boxes in (cx, cy, w, h) format - shape (N, 4)
-        """
+        """Collate function for standard detection batches with 4 bbox parameters (cx, cy, w, h)."""
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):

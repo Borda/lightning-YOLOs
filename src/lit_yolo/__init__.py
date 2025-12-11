@@ -6,6 +6,8 @@ Features: logging, jsonargparse CLI, TorchMetrics mAP (train+val), AMP, auto cla
 
 # Import main components
 from lit_yolo.data import (
+    BaseYOLODataModule,
+    BaseYOLODataset,
     DetDataModule,
     OBBDataModule,
     YOLODetDataset,
@@ -15,10 +17,13 @@ from lit_yolo.data import (
     obb_to_xyxy,
     xywh_to_xyxy,
 )
-from lit_yolo.models import LitYOLODet, LitYOLOOBB
+from lit_yolo.models import BaseLitYOLO, LitYOLODet, LitYOLOOBB
 from lit_yolo.training import train_detect, train_obb
 
 __all__ = [
+    "BaseLitYOLO",
+    "BaseYOLODataModule",
+    "BaseYOLODataset",
     "DetDataModule",
     "OBBDataModule",
     "YOLODetDataset",
