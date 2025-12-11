@@ -188,7 +188,7 @@ class BaseYOLODataset(Dataset):
     Abstract base class for YOLO-style datasets, providing common functionality for image loading,
     preprocessing, and letterbox resizing.
 
-    This class is intended to be subclassed for specific YOLO dataset variants (e.g., oriented bounding box, 
+    This class is intended to be subclassed for specific YOLO dataset variants (e.g., oriented bounding box,
     custom label formats). It handles:
         - Discovering and loading images from a directory structure (expects 'images/' and 'labels/' subdirs).
         - Preprocessing images (resizing, normalization, letterbox padding).
@@ -476,6 +476,158 @@ class BaseYOLODataModule(LightningDataModule):
     def _collate(self, batch: list[tuple]) -> dict[str, Any]:
         """Collate function for batching. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _collate")
+
+    @staticmethod
+    def create_synthetic_dataset(
+        root: Path | str,
+        num_train: int = 100,
+        num_val: int = 20,
+        img_size: int = 640,
+        class_mode: str = "shape",
+        seed: int = 42,
+    ) -> Path:
+        """Create a synthetic dataset with basic geometric shapes for testing.
+
+        Generates images containing three basic shapes (square, triangle, circle) with different colors
+        (red, green, blue). Classes can be defined by shape or color depending on class_mode.
+
+        Args:
+            root: Root directory where dataset will be created.
+            num_train: Number of training images to generate.
+            num_val: Number of validation images to generate.
+            img_size: Size of generated images (square).
+            class_mode: Classification mode - "shape" (3 shape classes) or "color" (3 color classes).
+            seed: Random seed for reproducibility.
+
+        Returns:
+            Path to the created dataset root directory.
+
+        Raises:
+            ValueError: If class_mode is not "shape" or "color".
+
+        Examples:
+            >>> import tempfile
+            >>> from pathlib import Path
+            >>> # Create synthetic dataset
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     root = Path(tmpdir) / "synthetic"
+            ...     dataset_path = BaseYOLODataModule.create_synthetic_dataset(root, num_train=5, num_val=2)
+            ...     # Verify structure
+            ...     assert (dataset_path / "images" / "train").exists()
+            ...     assert (dataset_path / "labels" / "train").exists()
+            ...     assert len(list((dataset_path / "images" / "train").glob("*.jpg"))) == 5
+            ...     assert len(list((dataset_path / "images" / "val").glob("*.jpg"))) == 2
+        """
+        if class_mode not in ["shape", "color"]:
+            raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
+
+        root = Path(root)
+        np.random.seed(seed)
+
+        # Define shapes and colors
+        shapes = ["square", "triangle", "circle"]
+        colors = {
+            "red": (255, 0, 0),
+            "green": (0, 255, 0),
+            "blue": (0, 0, 255),
+        }
+        color_names = list(colors.keys())
+
+        # Create directory structure
+        for split in ["train", "val"]:
+            (root / "images" / split).mkdir(parents=True, exist_ok=True)
+            (root / "labels" / split).mkdir(parents=True, exist_ok=True)
+
+        def draw_shape(img: np.ndarray, shape: str, color: tuple, center: tuple, size: int) -> np.ndarray:
+            """Draw a shape on the image."""
+            cx, cy = center
+            if shape == "square":
+                # Draw filled square
+                half_size = size // 2
+                pt1 = (cx - half_size, cy - half_size)
+                pt2 = (cx + half_size, cy + half_size)
+                cv2.rectangle(img, pt1, pt2, color, -1)
+            elif shape == "triangle":
+                # Draw filled triangle (equilateral pointing up)
+                height = int(size * 0.866)  # sqrt(3)/2 for equilateral triangle
+                pt1 = (cx, cy - 2 * height // 3)
+                pt2 = (cx - size // 2, cy + height // 3)
+                pt3 = (cx + size // 2, cy + height // 3)
+                pts = np.array([pt1, pt2, pt3], np.int32)
+                cv2.fillPoly(img, [pts], color)
+            elif shape == "circle":
+                # Draw filled circle
+                cv2.circle(img, (cx, cy), size // 2, color, -1)
+            return img
+
+        def generate_image_with_labels(img_path: Path, label_path: Path, num_objects: int = 3):
+            """Generate a single image with objects and corresponding labels."""
+            # Create blank image with gray background
+            img = np.ones((img_size, img_size, 3), dtype=np.uint8) * 128
+
+            labels = []
+
+            # Generate objects (one of each shape with different colors)
+            for i in range(num_objects):
+                shape = shapes[i % len(shapes)]
+                color_name = color_names[i % len(color_names)]
+                color = colors[color_name]
+
+                # Determine class based on mode
+                if class_mode == "shape":
+                    cls = shapes.index(shape)
+                else:  # class_mode == "color"
+                    cls = color_names.index(color_name)
+
+                # Random position and size
+                min_size, max_size = img_size // 10, img_size // 5
+                obj_size = np.random.randint(min_size, max_size)
+                margin = obj_size
+                cx = np.random.randint(margin, img_size - margin)
+                cy = np.random.randint(margin, img_size - margin)
+
+                # Draw shape
+                img = draw_shape(img, shape, color, (cx, cy), obj_size)
+
+                # Create bounding box (normalized YOLO format: cx, cy, w, h)
+                # Add some padding to the bounding box
+                padding = 1.2
+                box_w = (obj_size * padding) / img_size
+                box_h = (obj_size * padding) / img_size
+                box_cx = cx / img_size
+                box_cy = cy / img_size
+
+                # Ensure box is within bounds
+                box_w = min(box_w, 1.0)
+                box_h = min(box_h, 1.0)
+
+                labels.append(f"{cls} {box_cx:.6f} {box_cy:.6f} {box_w:.6f} {box_h:.6f}")
+
+            # Save image
+            cv2.imwrite(str(img_path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+
+            # Save labels
+            with open(label_path, "w") as f:
+                f.write("\n".join(labels) + "\n")
+
+        # Generate training images
+        logger.info(f"Generating {num_train} training images...")
+        for i in range(num_train):
+            img_path = root / "images" / "train" / f"img_{i:05d}.jpg"
+            label_path = root / "labels" / "train" / f"img_{i:05d}.txt"
+            generate_image_with_labels(img_path, label_path)
+
+        # Generate validation images
+        logger.info(f"Generating {num_val} validation images...")
+        for i in range(num_val):
+            img_path = root / "images" / "val" / f"img_{i:05d}.jpg"
+            label_path = root / "labels" / "val" / f"img_{i:05d}.txt"
+            generate_image_with_labels(img_path, label_path)
+
+        logger.info(f"Synthetic dataset created at {root}")
+        logger.info(f"Class mode: {class_mode} (3 classes: {', '.join(shapes if class_mode == 'shape' else color_names)})")
+
+        return root
 
 
 class OBBDataModule(BaseYOLODataModule):
