@@ -198,11 +198,6 @@ class BaseYOLODataset(Dataset):
         - _load_labels(self, idx: int) -> torch.Tensor
             Loads and returns the label(s) for the image at the given index, in the expected format.
 
-
-    Raises:
-        ValueError: If img_size is not a positive integer or no images found.
-        FileNotFoundError: If image directory does not exist.
-
     Example:
         class MyYOLODataset(BaseYOLODataset):
             def _load_labels(self, idx: int) -> torch.Tensor:
