@@ -184,10 +184,36 @@ def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
 
 
 class BaseYOLODataset(Dataset):
-    """Base dataset class for YOLO-style datasets with common functionality."""
+    """
+    Abstract base class for YOLO-style datasets, providing common functionality for image loading,
+    preprocessing, and letterbox resizing.
 
-    FORMATS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+    This class is intended to be subclassed for specific YOLO dataset variants (e.g., oriented bounding box, 
+    custom label formats). It handles:
+        - Discovering and loading images from a directory structure (expects 'images/' and 'labels/' subdirs).
+        - Preprocessing images (resizing, normalization, letterbox padding).
+        - Providing a standard __getitem__ interface returning (image, label) pairs as tensors.
 
+    Subclasses must implement:
+        - _load_labels(self, idx: int) -> torch.Tensor
+            Loads and returns the label(s) for the image at the given index, in the expected format.
+
+    Args:
+        root: Root directory containing 'images/' and 'labels/' subdirectories.
+        split: Dataset split ('train', 'val', or 'test').
+        img_size: Target image size for resizing (e.g., 640).
+        num_classes: Number of object classes in the dataset.
+
+    Raises:
+        ValueError: If img_size is not a positive integer or no images found.
+        FileNotFoundError: If image directory does not exist.
+
+    Example:
+        class MyYOLODataset(BaseYOLODataset):
+            def _load_labels(self, idx: int) -> torch.Tensor:
+                # Custom label loading logic here
+                ...
+    """
     def __init__(self, root: Path, split: str, img_size: int, num_classes: int):
         """Initialize base YOLO dataset.
 
@@ -387,9 +413,24 @@ class YOLODetDataset(BaseYOLODataset):
 
 
 class BaseYOLODataModule(LightningDataModule):
-    """Base Lightning DataModule for YOLO datasets with common functionality."""
+    """
+    Base Lightning DataModule for YOLO datasets.
 
-    def __init__(
+    This abstract base class provides common functionality for YOLO dataset DataModules,
+    including dataloader configuration, automatic class detection, and standardized
+    interface for training and validation data loading.
+
+    Subclasses must implement the following methods:
+        - setup(stage): Prepare and assign self.train_ds and self.val_ds datasets for the given stage.
+        - _collate(batch): Collate function for batching samples, used by the dataloaders.
+
+    Common functionality provided:
+        - Dataloader creation for training and validation with consistent configuration.
+        - Automatic detection of the number of classes from the dataset if not provided.
+        - Standardized interface for extending to new YOLO variants (e.g., OBB, detection).
+
+    To extend for a new YOLO variant, subclass this class and implement the required methods.
+    """
         self, data: str, img_size: int = 640, batch_size: int = 8, num_workers: int = 4, num_classes: int | None = None
     ):
         """Initialize base YOLO data module.

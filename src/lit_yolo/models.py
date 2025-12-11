@@ -18,10 +18,33 @@ logger = logging.getLogger(__name__)
 
 
 class BaseLitYOLO(pl.LightningModule):
-    """Base Lightning module for YOLO training with common functionality."""
+    """
+    Base LightningModule for YOLO training with common functionality.
 
-    def __init__(
-        self,
+    This class provides a foundation for training YOLO models using PyTorch Lightning.
+    It handles model initialization, optimizer and scheduler configuration, training and validation
+    step logic, and metric logging (e.g., mAP). It is designed to be subclassed for specific YOLO
+    variants or custom training logic.
+
+    Subclasses must implement:
+        - `_update_metrics(self, preds: Any, batch: dict, metric)`: Update the provided metric object
+          with predictions and ground truth from the batch. This is required for correct metric logging.
+
+    Common functionality provided:
+        - Model loading and initialization from a given model name or path.
+        - Training and validation step logic, including loss computation and metric updates.
+        - Optimizer and learning rate scheduler configuration.
+        - Automatic metric logging for mAP (if torchmetrics[detection] is installed).
+        - Device management and batch transfer utilities.
+
+    Example:
+        class MyYOLO(BaseLitYOLO):
+            def _update_metrics(self, preds, batch, metric):
+                # Custom metric update logic
+                ...
+
+    See `LitYOLOOBB` for a concrete implementation.
+    """
         model_name: str,
         num_classes: int,
         lr: float = 1e-3,
