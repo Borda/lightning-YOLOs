@@ -23,10 +23,6 @@ from lit_yolo.data.utils import (
 logger = logging.getLogger(__name__)
 
 
-# DATA MODULES
-# =============================================================================
-
-
 class BaseYOLODataModule(LightningDataModule):
     """
     Base Lightning DataModule for YOLO datasets.
