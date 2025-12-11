@@ -17,7 +17,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from lit_yolo.data import create_synthetic_dataset_cli
+from lit_yolo.data import create_synthetic_dataset
 from lit_yolo.training import train_detect, train_obb
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def main():
     CLI(
         {
             "train": {"obb": train_obb, "detect": train_detect},
-            "create": {"dataset": create_synthetic_dataset_cli},
+            "create": {"dataset": create_synthetic_dataset},
         },
         as_positional=False,
     )
