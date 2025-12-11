@@ -65,7 +65,6 @@ class BaseLitYOLO(pl.LightningModule):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
-        default_nc: int = 80,
     ):
         """Initialize base YOLO Lightning module.
 
@@ -76,7 +75,6 @@ class BaseLitYOLO(pl.LightningModule):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
-            default_nc: Default number of classes if not found in model config.
         """
         super().__init__()
         self.save_hyperparameters()
@@ -263,7 +261,7 @@ class LitYOLOOBB(BaseLitYOLO):
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
         """
-        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size, default_nc=15)
+        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Update metrics with OBB predictions."""
@@ -321,7 +319,7 @@ class LitYOLODet(BaseLitYOLO):
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
         """
-        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size, default_nc=80)
+        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Update metrics with standard detection predictions."""
