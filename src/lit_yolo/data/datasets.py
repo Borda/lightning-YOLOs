@@ -132,6 +132,49 @@ class BaseYOLODataset(Dataset):
 class YOLOOBBDataset(BaseYOLODataset):
     """Dataset for YOLO OBB format (4-corner annotations)."""
 
+    @staticmethod
+    def _parse_standard_detection_line(parts: list[str], num_classes: int) -> list[float] | None:
+        """Parse standard detection format line: class x y w h (no rotation).
+        
+        Args:
+            parts: Line parts split by whitespace.
+            num_classes: Number of classes for validation.
+            
+        Returns:
+            List of [cls, x, y, w, h, 0.0] or None if invalid.
+        """
+        try:
+            cls = int(parts[0])
+            if not (0 <= cls < num_classes):
+                return None
+            x, y, w, h = map(float, parts[1:5])
+            # Append with rotation = 0
+            return [cls, x, y, w, h, 0.0]
+        except ValueError as e:
+            logger.debug(f"Skipping invalid standard detection line: {e}")
+            return None
+
+    @staticmethod
+    def _parse_obb_line(parts: list[str], num_classes: int) -> list[float] | None:
+        """Parse OBB format line: class + 8 corner coordinates.
+        
+        Args:
+            parts: Line parts split by whitespace.
+            num_classes: Number of classes for validation.
+            
+        Returns:
+            List of [cls, cx, cy, w, h, angle] or None if invalid.
+        """
+        try:
+            cls = int(parts[0])
+            if not (0 <= cls < num_classes):
+                return None
+            corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
+            return [cls, *corners_to_xywhr(corners)]
+        except ValueError as e:
+            logger.debug(f"Skipping invalid OBB line: {e}")
+            return None
+
     def _load_labels(self, path: Path) -> torch.Tensor:
         """Load OBB labels: class + 8 corner coordinates -> (class, cx, cy, w, h, angle)."""
         if not path.exists():
@@ -145,28 +188,15 @@ class YOLOOBBDataset(BaseYOLODataset):
             parts = line.strip().split()
             if len(parts) == 5:
                 # Standard detection format: class x y w h (no rotation)
-                has_standard_detection = True
-                try:
-                    cls = int(parts[0])
-                    if not (0 <= cls < self.num_classes):
-                        continue
-                    x, y, w, h = map(float, parts[1:5])
-                    # Append with rotation = 0
-                    labels.append([cls, x, y, w, h, 0.0])
-                except ValueError as e:
-                    logger.debug(f"Skipping invalid line in {path}: {e}")
-                    continue
+                label = self._parse_standard_detection_line(parts, self.num_classes)
+                if label is not None:
+                    has_standard_detection = True
+                    labels.append(label)
             elif len(parts) == 9:
                 # OBB format: class + 8 corner coordinates
-                try:
-                    cls = int(parts[0])
-                    if not (0 <= cls < self.num_classes):
-                        continue
-                    corners = np.array([float(x) for x in parts[1:9]], dtype=np.float32).reshape(4, 2)
-                    labels.append([cls, *corners_to_xywhr(corners)])
-                except ValueError as e:
-                    logger.debug(f"Skipping invalid line in {path}: {e}")
-                    continue
+                label = self._parse_obb_line(parts, self.num_classes)
+                if label is not None:
+                    labels.append(label)
             else:
                 # Skip invalid formats
                 if parts:  # Only warn if line is not empty
