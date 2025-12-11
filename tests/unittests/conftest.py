@@ -72,7 +72,7 @@ def obb_format_dataset(obb_dataset_dir, create_test_image):
 
     # Create label file with OBB format (rectangle corners)
     label_path = obb_dataset_dir / "labels" / "train" / "test2.txt"
-    with open(label_path, "w") as f:
+    with open(label_path, "w", encoding="utf_8") as f:
         # Simple axis-aligned rectangle
         f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
 
@@ -98,12 +98,12 @@ def mixed_format_dataset(obb_dataset_dir, create_test_image):
 
     # Standard detection format
     label1_path = obb_dataset_dir / "labels" / "train" / "test_standard.txt"
-    with open(label1_path, "w") as f:
+    with open(label1_path, "w", encoding="utf_8") as f:
         f.write("0 0.5 0.5 0.3 0.4\n")
 
     # OBB format
     label2_path = obb_dataset_dir / "labels" / "train" / "test_obb.txt"
-    with open(label2_path, "w") as f:
+    with open(label2_path, "w", encoding="utf_8") as f:
         f.write("0 0.3 0.3 0.7 0.3 0.7 0.7 0.3 0.7\n")
 
     return obb_dataset_dir
