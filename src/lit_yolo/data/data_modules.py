@@ -151,7 +151,7 @@ class BaseDataModule(LightningDataModule):
             ...     nb_train = len(list((dataset_path / "images" / "train").glob("*.jpg")))
             ...     nb_val = len(list((dataset_path / "images" / "val").glob("*.jpg")))
             >>> nb_train, nb_val
-            7, 3
+            (7, 3)
         """
         # Validate class_mode
         if class_mode not in ("shape", "color"):
