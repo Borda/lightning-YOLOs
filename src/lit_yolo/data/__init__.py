@@ -7,7 +7,6 @@ from lit_yolo.data.data_modules import (
     DetDataModule,
     OBBDataModule,
     create_synthetic_dataset,
-    show_dataset,
 )
 from lit_yolo.data.datasets import BaseDataset, DetDataset, OBBDataset
 from lit_yolo.data.utils import (
@@ -25,7 +24,6 @@ __all__ = [
     "DetDataModule",
     "OBBDataModule",
     "create_synthetic_dataset",
-    "show_dataset",
     "BaseDataset",
     "DetDataset",
     "OBBDataset",

@@ -107,16 +107,32 @@ class BaseDataModule(LightningDataModule):
         """Collate function for batching. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _collate")
 
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw bounding boxes on image. Must be implemented by subclasses.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of bounding boxes (format depends on subclass).
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn boxes in BGR format.
+        """
+        raise NotImplementedError("Subclasses must implement _draw_boxes_on_image")
+
     def visualize_batch(
         self,
-        split: str = "train",
+        split: Literal["train", "val"] = "train",
         output_path: str | Path | None = None,
         batch_idx: int = 0,
         class_names: list[str] | None = None,
     ) -> np.ndarray:
         """Visualize a batch from the dataset with annotations.
 
-        Creates a grid image showing all samples in the first batch with drawn bounding boxes
+        Creates a grid image showing all samples in the specified batch with drawn bounding boxes
         and class labels.
 
         Args:
@@ -127,11 +143,108 @@ class BaseDataModule(LightningDataModule):
 
         Returns:
             Grid image as numpy array in BGR format.
-
-        Raises:
-            NotImplementedError: Must be implemented by subclasses.
         """
-        raise NotImplementedError("Subclasses must implement visualize_batch")
+        # Ensure dataset is setup
+        if self.train_ds is None or self.val_ds is None:
+            self.setup("fit")
+
+        # Get the appropriate dataloader
+        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
+
+        # Get the specified batch
+        for i, batch in enumerate(dataloader):
+            if i == batch_idx:
+                break
+        else:
+            raise ValueError(f"Batch index {batch_idx} out of range")
+
+        # Extract data from batch
+        imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
+        batch_indices = batch["batch_idx"]  # (N,)
+        cls = batch["cls"]  # (N, 1)
+        bboxes = batch["bboxes"]  # (N, 4 or 5) depending on subclass
+
+        # Convert tensors to numpy
+        imgs_np = imgs.cpu().numpy()
+        batch_indices_np = batch_indices.cpu().numpy()
+        cls_np = cls.cpu().numpy().flatten()
+        bboxes_np = bboxes.cpu().numpy()
+
+        # Create annotated images
+        annotated_images = []
+        for b in range(imgs_np.shape[0]):
+            # Get image and convert from CHW to HWC, scale to [0, 255]
+            img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
+
+            # Get boxes for this image
+            mask = batch_indices_np == b
+            img_bboxes = bboxes_np[mask]
+            img_cls = cls_np[mask]
+
+            if len(img_bboxes) > 0:
+                # Draw bounding boxes using subclass-specific method
+                img = self._draw_boxes_on_image(img, img_bboxes, img_cls, class_names=class_names)
+            else:
+                # Convert RGB to BGR if no boxes to draw
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+            annotated_images.append(img)
+
+        # Create grid using matplotlib subplots
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            # Fallback to cv2-based grid if matplotlib not available
+            grid = create_batch_grid(annotated_images)
+            if output_path is not None:
+                output_path = Path(output_path)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                cv2.imwrite(str(output_path), grid)
+                logger.info(f"Saved visualization to {output_path}")
+            return grid
+
+        # Determine grid layout
+        n = len(annotated_images)
+        cols = int(np.ceil(np.sqrt(n)))
+        rows = int(np.ceil(n / cols))
+
+        # Create figure with subplots
+        fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 4))
+        if n == 1:
+            axes = np.array([axes])
+        axes = axes.flatten()
+
+        # Plot each image
+        for idx, (ax, img) in enumerate(zip(axes, annotated_images)):
+            # Convert BGR to RGB for matplotlib
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            ax.imshow(img_rgb)
+            ax.axis("off")
+            ax.set_title(f"Image {idx}")
+
+        # Hide unused subplots
+        for idx in range(n, len(axes)):
+            axes[idx].axis("off")
+
+        plt.tight_layout()
+
+        # Save or convert to array
+        if output_path is not None:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(str(output_path), dpi=150, bbox_inches="tight")
+            logger.info(f"Saved visualization to {output_path}")
+
+        # Convert figure to numpy array for return value
+        fig.canvas.draw()
+        grid = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        grid = grid.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        # Convert RGB to BGR for consistency
+        grid = cv2.cvtColor(grid, cv2.COLOR_RGB2BGR)
+
+        plt.close(fig)
+
+        return grid
 
     @staticmethod
     def create_synthetic_dataset(
@@ -258,99 +371,23 @@ class OBBDataModule(BaseDataModule):
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 5),
         }
 
-    def visualize_batch(
-        self,
-        split: str = "train",
-        output_path: str | Path | None = None,
-        batch_idx: int = 0,
-        class_names: list[str] | None = None,
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
     ) -> np.ndarray:
-        """Visualize a batch from the OBB dataset with oriented bounding boxes.
-
-        Creates a grid image showing all samples in the specified batch with drawn oriented
-        bounding boxes and class labels.
+        """Draw oriented bounding boxes on image.
 
         Args:
-            split: Dataset split to visualize ("train" or "val").
-            output_path: Optional path to save the visualization. If None, only returns the image.
-            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of shape (N, 5) with [cx, cy, w, h, angle] in normalized coordinates.
+            class_ids: Array of class indices.
             class_names: Optional list of class names for labels.
 
         Returns:
-            Grid image as numpy array in BGR format.
-
-        Examples:
-            >>> import tempfile
-            >>> from pathlib import Path
-            >>> # Create synthetic dataset
-            >>> with tempfile.TemporaryDirectory() as tmpdir:
-            ...     root = Path(tmpdir) / "synthetic"
-            ...     _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10)
-            ...     dm = OBBDataModule(data=str(root), img_size=320, batch_size=4)
-            ...     dm.setup("fit")
-            ...     grid = dm.visualize_batch("train")
-            >>> grid.shape[0] > 0 and grid.shape[1] > 0
-            True
+            Image with drawn oriented boxes in BGR format.
         """
         from lit_yolo.data.utils import draw_obb_on_image
 
-        # Ensure dataset is setup
-        if self.train_ds is None or self.val_ds is None:
-            self.setup("fit")
-
-        # Get the appropriate dataloader
-        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
-
-        # Get the specified batch
-        for i, batch in enumerate(dataloader):
-            if i == batch_idx:
-                break
-        else:
-            raise ValueError(f"Batch index {batch_idx} out of range")
-
-        # Extract data from batch
-        imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
-        batch_indices = batch["batch_idx"]  # (N,)
-        cls = batch["cls"]  # (N, 1)
-        bboxes = batch["bboxes"]  # (N, 5) - cx, cy, w, h, angle
-
-        # Convert tensors to numpy
-        imgs_np = imgs.cpu().numpy()
-        batch_indices_np = batch_indices.cpu().numpy()
-        cls_np = cls.cpu().numpy().flatten()
-        bboxes_np = bboxes.cpu().numpy()
-
-        # Create annotated images
-        annotated_images = []
-        for b in range(imgs_np.shape[0]):
-            # Get image and convert from CHW to HWC, scale to [0, 255]
-            img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
-
-            # Get boxes for this image
-            mask = batch_indices_np == b
-            img_bboxes = bboxes_np[mask]
-            img_cls = cls_np[mask]
-
-            if len(img_bboxes) > 0:
-                # Draw oriented bounding boxes
-                img = draw_obb_on_image(img, img_bboxes, img_cls, class_names=class_names)
-            else:
-                # Convert RGB to BGR if no boxes to draw
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-            annotated_images.append(img)
-
-        # Create grid
-        grid = create_batch_grid(annotated_images)
-
-        # Save if output path is provided
-        if output_path is not None:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_path), grid)
-            logger.info(f"Saved visualization to {output_path}")
-
-        return grid
+        return draw_obb_on_image(img, bboxes, class_ids, class_names=class_names)
 
 
 class DetDataModule(BaseDataModule):
@@ -382,99 +419,23 @@ class DetDataModule(BaseDataModule):
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),  # 4 params: cx, cy, w, h
         }
 
-    def visualize_batch(
-        self,
-        split: str = "train",
-        output_path: str | Path | None = None,
-        batch_idx: int = 0,
-        class_names: list[str] | None = None,
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
     ) -> np.ndarray:
-        """Visualize a batch from the detection dataset with axis-aligned bounding boxes.
-
-        Creates a grid image showing all samples in the specified batch with drawn bounding boxes
-        and class labels.
+        """Draw axis-aligned bounding boxes on image.
 
         Args:
-            split: Dataset split to visualize ("train" or "val").
-            output_path: Optional path to save the visualization. If None, only returns the image.
-            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of shape (N, 4) with [cx, cy, w, h] in normalized coordinates.
+            class_ids: Array of class indices.
             class_names: Optional list of class names for labels.
 
         Returns:
-            Grid image as numpy array in BGR format.
-
-        Examples:
-            >>> import tempfile
-            >>> from pathlib import Path
-            >>> # Create synthetic dataset
-            >>> with tempfile.TemporaryDirectory() as tmpdir:
-            ...     root = Path(tmpdir) / "synthetic"
-            ...     _ = DetDataModule.create_synthetic_dataset(root, num_samples=10)
-            ...     dm = DetDataModule(data=str(root), img_size=320, batch_size=4)
-            ...     dm.setup("fit")
-            ...     grid = dm.visualize_batch("train")
-            >>> grid.shape[0] > 0 and grid.shape[1] > 0
-            True
+            Image with drawn boxes in BGR format.
         """
         from lit_yolo.data.utils import draw_bboxes_on_image
 
-        # Ensure dataset is setup
-        if self.train_ds is None or self.val_ds is None:
-            self.setup("fit")
-
-        # Get the appropriate dataloader
-        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
-
-        # Get the specified batch
-        for i, batch in enumerate(dataloader):
-            if i == batch_idx:
-                break
-        else:
-            raise ValueError(f"Batch index {batch_idx} out of range")
-
-        # Extract data from batch
-        imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
-        batch_indices = batch["batch_idx"]  # (N,)
-        cls = batch["cls"]  # (N, 1)
-        bboxes = batch["bboxes"]  # (N, 4) - cx, cy, w, h
-
-        # Convert tensors to numpy
-        imgs_np = imgs.cpu().numpy()
-        batch_indices_np = batch_indices.cpu().numpy()
-        cls_np = cls.cpu().numpy().flatten()
-        bboxes_np = bboxes.cpu().numpy()
-
-        # Create annotated images
-        annotated_images = []
-        for b in range(imgs_np.shape[0]):
-            # Get image and convert from CHW to HWC, scale to [0, 255]
-            img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
-
-            # Get boxes for this image
-            mask = batch_indices_np == b
-            img_bboxes = bboxes_np[mask]
-            img_cls = cls_np[mask]
-
-            if len(img_bboxes) > 0:
-                # Draw bounding boxes
-                img = draw_bboxes_on_image(img, img_bboxes, img_cls, class_names=class_names)
-            else:
-                # Convert RGB to BGR if no boxes to draw
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-            annotated_images.append(img)
-
-        # Create grid
-        grid = create_batch_grid(annotated_images)
-
-        # Save if output path is provided
-        if output_path is not None:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_path), grid)
-            logger.info(f"Saved visualization to {output_path}")
-
-        return grid
+        return draw_bboxes_on_image(img, bboxes, class_ids, class_names=class_names)
 
 
 def create_synthetic_dataset(
@@ -526,7 +487,7 @@ def create_synthetic_dataset(
 def show_dataset(
     data: str,
     output: str | None = None,
-    split: str = "train",
+    split: Literal["train", "val"] = "train",
     batch_size: int = 8,
     batch_idx: int = 0,
     img_size: int = 640,
@@ -552,10 +513,11 @@ def show_dataset(
         class_names: Optional list of class names for labels.
 
     Examples:
-        >>> # From command line:
-        >>> # lit-yolo show dataset --data /path/to/dataset --output viz.jpg
-        >>> # lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
-        >>> # lit-yolo show dataset --data /path/to/dataset  # Shows in window
+        From command line::
+
+            lit-yolo show dataset --data /path/to/dataset --output viz.jpg
+            lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
+            lit-yolo show dataset --data /path/to/dataset
     """
     # Use OBB datamodule as it supports both oriented and plain bounding boxes
     logger.info(f"Loading dataset from {data}...")
@@ -585,10 +547,20 @@ def show_dataset(
     else:
         # Display in matplotlib window
         try:
+            import matplotlib
             import matplotlib.pyplot as plt
         except ImportError:
             logger.error("matplotlib is required to display images. Install it with: pip install matplotlib")
             logger.info("Or specify --output to save to a file instead.")
+            return
+
+        # Check if we have a GUI backend available
+        backend = matplotlib.get_backend()
+        if backend.lower() in ('agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template'):
+            logger.warning(
+                f"No GUI backend available (current: {backend}). Cannot display interactive window."
+            )
+            logger.info("Running in headless mode. Please specify --output to save to a file instead.")
             return
 
         # Convert BGR to RGB for matplotlib
@@ -600,7 +572,11 @@ def show_dataset(
         plt.title(f"Dataset: {split} batch {batch_idx}")
         plt.tight_layout()
         logger.info("Displaying visualization in matplotlib window...")
-        plt.show()
+        try:
+            plt.show()
+        except Exception as e:
+            logger.error(f"Failed to display window: {e}")
+            logger.info("Please specify --output to save to a file instead.")
 
     logger.info(f"  Grid shape: {grid.shape}")
     logger.info(f"  Batch size: {batch_size}")

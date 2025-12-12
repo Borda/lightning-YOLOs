@@ -19,7 +19,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from lit_yolo.data import create_synthetic_dataset, show_dataset
+from lit_yolo.data import create_synthetic_dataset
+from lit_yolo.data.data_modules import show_dataset
 from lit_yolo.training import train_detect, train_obb
 
 logger = logging.getLogger(__name__)
