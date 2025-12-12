@@ -1,5 +1,4 @@
-"""
-CLI entry point for lit_yolo package.
+"""CLI entry point for lit_yolo package.
 
 Usage:
     python -m lit_yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
@@ -19,9 +18,9 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from lit_yolo.data import create_synthetic_dataset
-from lit_yolo.data.data_modules import show_dataset
-from lit_yolo.training import train_detect, train_obb
+from lit_yolo.data import create_synthetic_dataset  # noqa: E402
+from lit_yolo.data.data_modules import show_dataset  # noqa: E402
+from lit_yolo.training import train_detect, train_obb  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

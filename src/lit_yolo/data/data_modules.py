@@ -1,6 +1,4 @@
-"""
-DataModule classes for YOLO using PyTorch Lightning.
-"""
+"""DataModule classes for YOLO using PyTorch Lightning."""
 
 import logging
 from pathlib import Path
@@ -69,8 +67,7 @@ def show_images_in_grid(
 
 
 class BaseDataModule(LightningDataModule):
-    """
-    Base Lightning DataModule for YOLO datasets.
+    """Base Lightning DataModule for YOLO datasets.
 
     This abstract base class provides common functionality for YOLO dataset DataModules,
     including dataloader configuration, automatic class detection, and standardized
@@ -127,7 +124,10 @@ class BaseDataModule(LightningDataModule):
         return self._class_names
 
     def setup(self, stage: str | None = None):
-        """Setup datasets. Must be implemented by subclasses."""
+        """Setup datasets.
+
+        Must be implemented by subclasses.
+        """
         raise NotImplementedError("Subclasses must implement setup")
 
     def train_dataloader(self) -> DataLoader:
@@ -156,7 +156,10 @@ class BaseDataModule(LightningDataModule):
         )
 
     def _collate(self, batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for batching. Must be implemented by subclasses."""
+        """Collate function for batching.
+
+        Must be implemented by subclasses.
+        """
         raise NotImplementedError("Subclasses must implement _collate")
 
     def _draw_boxes_on_image(
@@ -331,7 +334,8 @@ class OBBDataModule(BaseDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for OBB batches with 5 bbox parameters (cx, cy, w, h, angle)."""
+        """Collate function for OBB batches with 5 bbox parameters (cx, cy, w,
+        h, angle)."""
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -377,7 +381,8 @@ class DetDataModule(BaseDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for standard detection batches with 4 bbox parameters (cx, cy, w, h)."""
+        """Collate function for standard detection batches with 4 bbox
+        parameters (cx, cy, w, h)."""
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -533,10 +538,8 @@ def show_dataset(
     else:
         # Check if we have a GUI backend available
         backend = matplotlib.get_backend()
-        if backend.lower() in ('agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template'):
-            logger.warning(
-                f"No GUI backend available (current: {backend}). Cannot display interactive window."
-            )
+        if backend.lower() in ("agg", "cairo", "pdf", "pgf", "ps", "svg", "template"):
+            logger.warning(f"No GUI backend available (current: {backend}). Cannot display interactive window.")
             logger.info("Running in headless mode. Please specify --output to save to a file instead.")
             plt.close(fig)
             return

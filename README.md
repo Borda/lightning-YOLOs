@@ -3,6 +3,7 @@
 YOLO Training with PyTorch Lightning - supports both OBB (Oriented Bounding Box) and standard object detection
 
 Supports:
+
 - **Standard Object Detection**: Axis-aligned bounding boxes for general object detection
 - **Oriented Bounding Box (OBB) Detection**: Rotated bounding boxes for aerial/satellite imagery
 
@@ -78,11 +79,7 @@ from lit_yolo import train_detect, LitYOLODet, DetDataModule
 
 # Train using the function
 train_detect(
-    data="/path/to/dataset",
-    model="yolo11n.pt",
-    epochs=100,
-    batch_size=8,
-    lr=1e-3
+    data="/path/to/dataset", model="yolo11n.pt", epochs=100, batch_size=8, lr=1e-3
 )
 
 # Or use the components directly
@@ -102,11 +99,7 @@ from lit_yolo import train_obb, LitYOLOOBB, OBBDataModule
 
 # Train using the function
 train_obb(
-    data="/path/to/dataset",
-    model="yolo11n-obb.pt",
-    epochs=100,
-    batch_size=8,
-    lr=1e-3
+    data="/path/to/dataset", model="yolo11n-obb.pt", epochs=100, batch_size=8, lr=1e-3
 )
 
 # Or use the components directly
@@ -148,17 +141,20 @@ lit-yolo train detect --data ./synthetic_dataset --model yolo11n.pt --epochs 10
 ```
 
 For details on all available parameters, run:
+
 ```bash
 lit-yolo create dataset --help
 ```
 
 The synthetic dataset feature generates:
+
 - Images with three basic shapes: square, triangle, and circle
 - Each shape rendered in a different color: red, green, and blue
 - Valid YOLO format labels for all objects
 - Both training and validation splits
 
 This is useful for:
+
 - Testing the implementation is working correctly
 - Verifying that metrics and loss are converging
 - Quick validation of changes without downloading large datasets
@@ -191,6 +187,7 @@ class_id x_center y_center width height
 ```
 
 All values are normalized between 0 and 1. Example:
+
 ```
 0 0.5 0.5 0.3 0.4
 1 0.2 0.3 0.15 0.2
@@ -211,17 +208,18 @@ All values are normalized between 0 and 1.
 The OBB dataset loader supports both formats:
 
 1. **OBB Format** (9 values per line): `class x1 y1 x2 y2 x3 y3 x4 y4`
+
    - Recommended for production training with oriented bounding boxes
    - Provides full rotation information
 
 2. **Standard Detection Format** (5 values per line): `class x y w h`
+
    - Useful for debugging convergence with simpler datasets
    - Enables CI testing with tiny datasets
    - Rotation is automatically set to 0
    - A warning is logged when this format is detected
 
 Both formats can coexist in the same project (e.g., different splits can use different formats).
-
 
 ## Visualization
 
@@ -243,7 +241,7 @@ lit-yolo show dataset --help
 
 Supports both oriented and axis-aligned bounding boxes automatically.
 
-## Example: Download DOTA v1.5 dataset (OBB)
+## Example: Download DATA v1.5 dataset (OBB)
 
 ```bash
 wget https://www.ultralytics.com/assets/DOTAv1.5.zip

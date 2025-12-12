@@ -1,6 +1,4 @@
-"""
-YOLO-OBB Lightning module for training.
-"""
+"""YOLO-OBB Lightning module for training."""
 
 import logging
 import tempfile
@@ -29,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseLitYOLO(pl.LightningModule):
-    """
-    Base LightningModule for YOLO training with common functionality.
+    """Base LightningModule for YOLO training with common functionality.
 
     This class provides a foundation for training YOLO models using PyTorch Lightning.
     It handles model initialization, optimizer and scheduler configuration, training and validation
@@ -186,7 +183,10 @@ class BaseLitYOLO(pl.LightningModule):
         return self._compute_step(batch, "val")
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with predictions. Must be implemented by subclasses."""
+        """Update metrics with predictions.
+
+        Must be implemented by subclasses.
+        """
         raise NotImplementedError("Subclasses must implement _update_metrics")
 
     def _log_metrics(self, stage: str):
@@ -298,7 +298,8 @@ class LitYOLOOBB(BaseLitYOLO):
 
 
 class LitYOLODet(BaseLitYOLO):
-    """Lightning module for standard YOLO detection training with TorchMetrics."""
+    """Lightning module for standard YOLO detection training with
+    TorchMetrics."""
 
     def __init__(
         self,

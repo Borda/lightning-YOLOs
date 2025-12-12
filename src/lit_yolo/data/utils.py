@@ -1,6 +1,5 @@
-"""
-Utility functions for YOLO data processing and synthetic dataset generation.
-"""
+"""Utility functions for YOLO data processing and synthetic dataset
+generation."""
 
 import logging
 import math
@@ -15,16 +14,16 @@ logger = logging.getLogger(__name__)
 
 # Default class colors for visualization (BGR format for OpenCV)
 DEFAULT_COLORS = [
-    (255, 0, 0),      # Blue
-    (0, 255, 0),      # Green
-    (0, 0, 255),      # Red
-    (255, 255, 0),    # Cyan (Green + Blue)
-    (255, 0, 255),    # Magenta (Blue + Red)
-    (0, 255, 255),    # Yellow (Green + Red)
-    (128, 0, 0),      # Dark Blue
-    (0, 128, 0),      # Dark Green
-    (0, 0, 128),      # Dark Red
-    (128, 128, 0),    # Olive (Dark Green + Dark Blue)
+    (255, 0, 0),  # Blue
+    (0, 255, 0),  # Green
+    (0, 0, 255),  # Red
+    (255, 255, 0),  # Cyan (Green + Blue)
+    (255, 0, 255),  # Magenta (Blue + Red)
+    (0, 255, 255),  # Yellow (Green + Red)
+    (128, 0, 0),  # Dark Blue
+    (0, 128, 0),  # Dark Green
+    (0, 0, 128),  # Dark Red
+    (128, 128, 0),  # Olive (Dark Green + Dark Blue)
 ]
 
 
@@ -307,7 +306,9 @@ def calculate_bbox_iou(bbox1: tuple[float, float, float, float], bbox2: tuple[fl
     return inter_area / union_area if union_area > 0 else 0.0
 
 
-def calculate_boundary_overlap(bbox: tuple[float, float, float, float], img_bounds: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)) -> float:
+def calculate_boundary_overlap(
+    bbox: tuple[float, float, float, float], img_bounds: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)
+) -> float:
     """Calculate how much of a bounding box is outside the image boundaries.
 
     Args:
@@ -505,7 +506,7 @@ def generate_synthetic_sample(
         # If we couldn't place the object after max attempts, skip it
         if not placed:
             logger.debug(
-                f"Could not place object {i+1}/{num_objects} after {max_placement_attempts} attempts. Skipping."
+                f"Could not place object {i + 1}/{num_objects} after {max_placement_attempts} attempts. Skipping."
             )
             continue
 
@@ -648,12 +649,15 @@ def draw_obb_on_image(
         hw, hh = w_px / 2, h_px / 2
 
         # Calculate the four corners
-        corners = np.array([
-            [cx_px + hw * cos_a - hh * sin_a, cy_px + hw * sin_a + hh * cos_a],
-            [cx_px + hw * cos_a + hh * sin_a, cy_px + hw * sin_a - hh * cos_a],
-            [cx_px - hw * cos_a + hh * sin_a, cy_px - hw * sin_a - hh * cos_a],
-            [cx_px - hw * cos_a - hh * sin_a, cy_px - hw * sin_a + hh * cos_a],
-        ], dtype=np.int32)
+        corners = np.array(
+            [
+                [cx_px + hw * cos_a - hh * sin_a, cy_px + hw * sin_a + hh * cos_a],
+                [cx_px + hw * cos_a + hh * sin_a, cy_px + hw * sin_a - hh * cos_a],
+                [cx_px - hw * cos_a + hh * sin_a, cy_px - hw * sin_a - hh * cos_a],
+                [cx_px - hw * cos_a - hh * sin_a, cy_px - hw * sin_a + hh * cos_a],
+            ],
+            dtype=np.int32,
+        )
 
         # Draw rotated rectangle
         cv2.polylines(img_draw, [corners], True, color, line_thickness)
@@ -677,8 +681,6 @@ def draw_obb_on_image(
         cv2.putText(img_draw, label, (x1, label_y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
     return img_draw
-
-
 
 
 def annotate_batch_images(

@@ -1,6 +1,5 @@
 """Unit tests for visualization functionality."""
 
-
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
@@ -107,7 +106,6 @@ class TestDrawOBBOnImage:
         assert result.shape == (640, 640, 3)
 
 
-
 class TestOBBDataModuleVisualization:
     """Tests for OBBDataModule visualize_batch method."""
 
@@ -141,7 +139,7 @@ class TestOBBDataModuleVisualization:
         fig, axes = dm.visualize_batch("train")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(output_path), bbox_inches="tight")
-        
+
         fig.clf()
         plt.close(fig)
 
@@ -215,10 +213,10 @@ class TestDetDataModuleVisualization:
         fig, axes = dm.visualize_batch("train")
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(output_path), bbox_inches="tight")
-        
+
         fig.clf()
         plt.close(fig)
-        
+
         # Check file is created
         assert output_path.exists()
         # Check can read the saved image

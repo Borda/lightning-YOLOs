@@ -43,7 +43,9 @@ class TestOverlapHelperFunctions:
         iou = calculate_bbox_iou(bbox1, bbox2)
         # Expected: 0.09 / 0.23 = 9/23 ≈ 0.391304347826087
         expected_iou = 9 / 23
-        assert abs(iou - expected_iou) < 1e-10, f"Partially overlapping boxes should have IoU of {expected_iou:.10f}, got {iou}"
+        assert abs(iou - expected_iou) < 1e-10, (
+            f"Partially overlapping boxes should have IoU of {expected_iou:.10f}, got {iou}"
+        )
 
     def test_calculate_boundary_overlap_inside(self):
         """Test boundary overlap for box fully inside image."""
@@ -74,7 +76,8 @@ class TestOverlapThresholdInGeneration:
     """Tests for overlap threshold in synthetic sample generation."""
 
     def test_generate_with_low_overlap_threshold(self):
-        """Test that low overlap threshold prevents objects from overlapping significantly."""
+        """Test that low overlap threshold prevents objects from overlapping
+        significantly."""
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=5,
@@ -97,7 +100,8 @@ class TestOverlapThresholdInGeneration:
                 assert iou <= 0.1 + 1e-9, f"Objects {i} and {j} overlap with IoU {iou:.3f}, exceeds threshold 0.1"
 
     def test_generate_with_high_overlap_threshold(self):
-        """Test that high overlap threshold allows more objects to be placed."""
+        """Test that high overlap threshold allows more objects to be
+        placed."""
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=5,
@@ -211,7 +215,6 @@ class TestSyntheticDatasetCreation:
         assert len(train_labels) == 4
         assert len(val_labels) == 3
 
-
     @pytest.mark.parametrize("class_mode", ["shape", "color"])
     def test_class_modes(self, tmp_path, class_mode):
         """Test synthetic dataset with different classification modes."""
@@ -235,12 +238,10 @@ class TestSyntheticDatasetCreation:
         # Should have 3 classes (0, 1, 2)
         assert classes_found == {0, 1, 2}
 
-
     def test_invalid_class_mode(self, tmp_path):
         """Test that invalid class_mode raises ValueError."""
         with pytest.raises(ValueError, match="class_mode"):
             BaseDataModule.create_synthetic_dataset(tmp_path, class_mode="invalid")
-
 
     def test_label_format_validity(self, tmp_path):
         """Test that generated labels are in valid YOLO format."""
@@ -277,7 +278,6 @@ class TestSyntheticDatasetCreation:
                 assert 0.0 < w <= 1.0
                 assert 0.0 < h <= 1.0
 
-
     def test_image_properties(self, tmp_path):
         """Test that generated images have correct properties."""
         img_size = 512
@@ -297,7 +297,6 @@ class TestSyntheticDatasetCreation:
             # Check image has 3 channels (RGB)
             assert img.shape[2] == 3
 
-
     def test_image_label_correspondence(self, tmp_path):
         """Test that each image has a corresponding label file."""
         dataset_path = BaseDataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
@@ -315,7 +314,6 @@ class TestSyntheticDatasetCreation:
             # Matching filenames (stem)
             for img_file, label_file in zip(img_files, label_files):
                 assert img_file.stem == label_file.stem
-
 
     def test_reproducibility_with_seed(self, tmp_path):
         """Test that same seed produces same dataset."""
@@ -338,7 +336,6 @@ class TestSyntheticDatasetCreation:
                 # Labels should be identical
                 assert content1 == content2
 
-
     def test_custom_image_size(self, tmp_path):
         """Test synthetic dataset creation with custom image size."""
         custom_size = 320
@@ -352,7 +349,6 @@ class TestSyntheticDatasetCreation:
             img = cv2.imread(str(img_file))
             assert img.shape[0] == custom_size
             assert img.shape[1] == custom_size
-
 
     def test_can_load_with_det_datamodule(self, tmp_path):
         """Test that synthetic dataset can be loaded with DetDataModule."""
@@ -380,9 +376,9 @@ class TestSyntheticDatasetCreation:
         assert batch["img"].shape[1] == 3  # channels
         assert batch["bboxes"].shape[1] == 4  # cx, cy, w, h
 
-
     def test_can_load_with_obb_datamodule(self, tmp_path):
-        """Test that synthetic dataset can be loaded with OBBDataModule (standard format)."""
+        """Test that synthetic dataset can be loaded with OBBDataModule
+        (standard format)."""
         dataset_path = BaseDataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
         # Create OBBDataModule and load dataset
@@ -407,7 +403,6 @@ class TestSyntheticDatasetCreation:
         assert batch["img"].shape[0] == 2  # batch size
         assert batch["bboxes"].shape[1] == 5  # cx, cy, w, h, angle
 
-
     def test_string_path_input(self, tmp_path):
         """Test that method accepts string path as input."""
         root_str = str(tmp_path)
@@ -416,7 +411,6 @@ class TestSyntheticDatasetCreation:
         # Should return Path object
         assert isinstance(dataset_path, Path)
         assert dataset_path.exists()
-
 
     def test_custom_num_objects(self, tmp_path):
         """Test configurable range of objects per image."""
@@ -482,7 +476,8 @@ class TestOBBDataset:
         assert abs(labels[0, 5].item()) < 0.1
 
     def test_standard_detection_warning_raised(self, yolo_dataset_dir, create_test_image):
-        """Test that warning is raised when standard detection format is detected."""
+        """Test that warning is raised when standard detection format is
+        detected."""
         # Create test image
         img_path = yolo_dataset_dir / "images" / "train" / "test3.jpg"
         create_test_image(img_path)
@@ -521,7 +516,8 @@ class TestOBBDataset:
         assert len(warning_list) == 1
 
     def test_mixed_format_handling(self, mixed_detection_dataset):
-        """Test that dataset can handle files without both formats mixed in same label file."""
+        """Test that dataset can handle files without both formats mixed in
+        same label file."""
         # Load dataset
         dataset = OBBDataset(mixed_detection_dataset, "train", img_size=640, num_classes=2)
 

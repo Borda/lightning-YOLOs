@@ -1,6 +1,4 @@
-"""
-Data sub-package for YOLO models.
-"""
+"""Data sub-package for YOLO models."""
 
 from lit_yolo.data.data_modules import (
     BaseDataModule,

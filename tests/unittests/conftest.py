@@ -81,7 +81,8 @@ def oriented_bounding_box_dataset(yolo_dataset_dir, create_test_image):
 
 @pytest.fixture
 def mixed_detection_dataset(yolo_dataset_dir, create_test_image):
-    """Create a synthetic dataset with mixed plain bounding boxes and OBB formats.
+    """Create a synthetic dataset with mixed plain bounding boxes and OBB
+    formats.
 
     Creates a dataset containing:
     - One image with standard detection format (5 values: class x y w h)

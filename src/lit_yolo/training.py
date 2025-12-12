@@ -1,12 +1,9 @@
-"""
-Training function and configuration for YOLO-OBB and standard detection.
-"""
+"""Training function and configuration for YOLO-OBB and standard detection."""
 
 import logging
 from pathlib import Path
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from lit_yolo.data import DetDataModule, OBBDataModule

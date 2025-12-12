@@ -1,5 +1,4 @@
-"""
-YOLO-OBB and standard detection training with PyTorch Lightning
+"""YOLO-OBB and standard detection training with PyTorch Lightning.
 
 Features: logging, jsonargparse CLI, TorchMetrics mAP (train+val), AMP, auto class detection.
 """
