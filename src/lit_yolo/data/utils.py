@@ -195,7 +195,7 @@ def calculate_bbox_iou(bbox1: tuple[float, float, float, float], bbox2: tuple[fl
         >>> # Non-overlapping boxes
         >>> bbox1 = (0.25, 0.25, 0.2, 0.2)
         >>> bbox2 = (0.75, 0.75, 0.2, 0.2)
-        >>> calculate_bbox_iou(bbox1, bbox2)
+        >>> round(calculate_bbox_iou(bbox1, bbox2), 10)
         0.0
         >>> # Identical boxes
         >>> bbox1 = (0.5, 0.5, 0.2, 0.2)
@@ -249,11 +249,11 @@ def calculate_boundary_overlap(bbox: tuple[float, float, float, float], img_boun
     Examples:
         >>> # Box fully inside
         >>> bbox = (0.5, 0.5, 0.2, 0.2)
-        >>> calculate_boundary_overlap(bbox)
+        >>> round(calculate_boundary_overlap(bbox), 10)
         0.0
         >>> # Box partially outside
         >>> bbox = (0.05, 0.5, 0.2, 0.2)
-        >>> calculate_boundary_overlap(bbox)
+        >>> round(calculate_boundary_overlap(bbox), 10)
         0.25
     """
     cx, cy, w, h = bbox
