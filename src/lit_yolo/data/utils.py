@@ -44,10 +44,10 @@ def read_class_names_from_yaml(data_path: str | Path) -> list[str] | None:
         >>> import tempfile
         >>> with tempfile.TemporaryDirectory() as tmpdir:
         ...     yaml_path = Path(tmpdir) / "data.yaml"
-        ...     yaml_path.write_text("names: ['cat', 'dog', 'bird']")
+        ...     _ = yaml_path.write_text("names: ['cat', 'dog', 'bird']")
         ...     names = read_class_names_from_yaml(tmpdir)
-        >>> names is not None
-        True
+        >>> sorted(names)
+        ['bird', 'cat', 'dog']
     """
     try:
         import yaml
