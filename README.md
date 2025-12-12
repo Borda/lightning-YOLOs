@@ -252,11 +252,83 @@ lit-yolo create dataset --help
 
 ______________________________________________________________________
 
-## 📚 Documentation
+## Downloading Public Datasets
 
-### Example Datasets
+### From Roboflow Universe
 
-#### DATA v1.5 (OBB Dataset)
+Roboflow provides thousands of public datasets for computer vision. Here's how to download and use them:
+
+```bash
+# Install roboflow package
+pip install roboflow
+```
+
+```python
+from roboflow import Roboflow
+
+# Initialize with your API key (get free key from https://app.roboflow.com)
+rf = Roboflow(api_key="YOUR_API_KEY")
+
+# Example: Hard Hat Detection dataset (construction safety, 3 classes)
+project = rf.workspace("roboflow-universe").project("hard-hat-workers")
+dataset = project.version(1).download("yolov11")
+
+# Train with Lightning-YOLOs
+from lit_yolo import train_detect
+
+train_detect(data=f"{dataset.location}/data.yaml", model="yolo11n.pt", epochs=50)
+```
+
+**Popular datasets on Roboflow:**
+
+- Hard Hat Detection (construction safety, 3 classes, ~7K images)
+- Blood Cell Detection (medical imaging, 3 classes, ~360 images)
+- Playing Cards Detection (53 classes, ~7.6K images)
+
+Browse more at [Roboflow Universe](https://universe.roboflow.com/)
+
+### From Kaggle
+
+Kaggle hosts many object detection datasets. Here's how to download them:
+
+```bash
+# Install kaggle package
+pip install kaggle
+
+# Setup: Download kaggle.json from https://www.kaggle.com/settings/account
+# Place it in ~/.kaggle/kaggle.json (Linux/Mac) or C:\Users\<username>\.kaggle\kaggle.json (Windows)
+# Set permissions: chmod 600 ~/.kaggle/kaggle.json
+```
+
+```bash
+# Example: Hard Hat Detection dataset
+kaggle datasets download -d andrewmvd/hard-hat-detection
+unzip -q hard-hat-detection.zip -d helmet_dataset
+
+# Create data.yaml file (adjust paths and class names for your dataset)
+cat > helmet_data.yaml << EOF
+train: helmet_dataset/images/train
+val: helmet_dataset/images/valid
+test: helmet_dataset/images/test  # optional
+
+nc: 3  # number of classes
+names: ["head", "helmet", "person"]  # adjust class names as needed
+EOF
+
+# Train with Lightning-YOLOs
+lit-yolo train detect --data helmet_data.yaml --model yolo11n.pt --epochs 50
+```
+
+**Popular datasets on Kaggle:**
+
+- Trash Detection / TACO (environmental monitoring, 60+ classes, ~1.5K images)
+- Safety Helmet Detection (construction safety, 3 classes, ~5K images)
+- Pothole Detection (infrastructure monitoring, 2 classes, ~665 images)
+- Face Mask Detection (public health, 3 classes, ~12K images)
+
+Browse more at [Kaggle Datasets](https://www.kaggle.com/datasets)
+
+### Example: Download DATA v1.5 dataset (OBB)
 
 ```bash
 # Download and extract DATA dataset
@@ -264,6 +336,8 @@ wget https://www.ultralytics.com/assets/DOTAv1.5.zip
 unzip -qq DOTAv1.5.zip
 python -m py_tree DOTAv1.5 -d 1
 ```
+
+## 📚 Documentation
 
 ### Additional Resources
 
