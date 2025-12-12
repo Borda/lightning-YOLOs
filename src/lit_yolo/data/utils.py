@@ -232,6 +232,8 @@ def calculate_bbox_iou(bbox1: tuple[float, float, float, float], bbox2: tuple[fl
     union_area = area1 + area2 - inter_area
 
     # Calculate IoU
+    # Edge case: if union_area is 0, both boxes have zero area (points)
+    # In this case, IoU is undefined but we return 0.0 for consistency
     return inter_area / union_area if union_area > 0 else 0.0
 
 
@@ -282,7 +284,8 @@ def calculate_boundary_overlap(bbox: tuple[float, float, float, float], img_boun
     total_area = w * h
 
     # Calculate outside ratio
-    outside_ratio = 1.0 - (inside_area / total_area) if total_area > 0 else 1.0
+    # Edge case: zero-area box (point) is considered to have no boundary overlap
+    outside_ratio = 1.0 - (inside_area / total_area) if total_area > 0 else 0.0
     return outside_ratio
 
 
