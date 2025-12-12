@@ -4,7 +4,7 @@ DataModule classes for YOLO using PyTorch Lightning.
 
 import logging
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import cv2
 import numpy as np
@@ -297,7 +297,7 @@ def create_synthetic_dataset(
         num_samples=num_samples,
         split_ratio=split_ratio,
         img_size=img_size,
-        class_mode=class_mode,
+        class_mode=cast(Literal["shape", "color"], class_mode),
         min_objects=min_objects,
         max_objects=max_objects,
         min_size_ratio=min_size_ratio,
