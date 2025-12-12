@@ -223,22 +223,66 @@ Both formats can coexist in the same project (e.g., different splits can use dif
 
 ## Downloading Public Datasets
 
-We provide example notebooks showing how to download and use datasets from popular platforms:
-
 ### From Roboflow Universe
-See [notebooks/download-dataset-roboflow.ipynb](notebooks/download-dataset-roboflow.ipynb) for examples including:
-- Hard Hat Detection (construction safety)
-- Blood Cell Detection (medical imaging)
-- Playing Cards Detection
-- And more...
+
+Roboflow provides thousands of public datasets for computer vision. Here's how to download and use them:
+
+```bash
+# Install roboflow package
+pip install roboflow
+```
+
+```python
+from roboflow import Roboflow
+
+# Initialize with your API key (get free key from https://app.roboflow.com)
+rf = Roboflow(api_key="YOUR_API_KEY")
+
+# Example: Hard Hat Detection dataset (construction safety, 3 classes)
+project = rf.workspace("roboflow-universe").project("hard-hat-workers")
+dataset = project.version(1).download("yolov11")
+
+# Train with Lightning-YOLOs
+from lit_yolo import train_detect
+train_detect(data=f"{dataset.location}/data.yaml", model="yolo11n.pt", epochs=50)
+```
+
+**Popular datasets on Roboflow:**
+- Hard Hat Detection (construction safety, 3 classes, ~7K images)
+- Blood Cell Detection (medical imaging, 3 classes, ~360 images)
+- Playing Cards Detection (53 classes, ~7.6K images)
+
+Browse more at [Roboflow Universe](https://universe.roboflow.com/)
 
 ### From Kaggle
-See [notebooks/download-dataset-kaggle.ipynb](notebooks/download-dataset-kaggle.ipynb) for examples including:
-- Trash Detection (environmental monitoring)
-- Safety Helmet Detection
-- Pothole Detection (infrastructure)
-- Face Mask Detection
-- And more...
+
+Kaggle hosts many object detection datasets. Here's how to download them:
+
+```bash
+# Install kaggle package
+pip install kaggle
+
+# Setup: Download kaggle.json from https://www.kaggle.com/settings/account
+# Place it in ~/.kaggle/kaggle.json (Linux/Mac) or C:\Users\<username>\.kaggle\kaggle.json (Windows)
+# Set permissions: chmod 600 ~/.kaggle/kaggle.json
+```
+
+```bash
+# Example: Hard Hat Detection dataset
+kaggle datasets download -d andrewmvd/hard-hat-detection
+unzip -q hard-hat-detection.zip -d helmet_dataset
+
+# Train with Lightning-YOLOs
+lit-yolo train detect --data helmet_data.yaml --model yolo11n.pt --epochs 50
+```
+
+**Popular datasets on Kaggle:**
+- Trash Detection / TACO (environmental monitoring, 60+ classes, ~1.5K images)
+- Safety Helmet Detection (construction safety, 3 classes, ~5K images)
+- Pothole Detection (infrastructure monitoring, 2 classes, ~665 images)
+- Face Mask Detection (public health, 3 classes, ~12K images)
+
+Browse more at [Kaggle Datasets](https://www.kaggle.com/datasets)
 
 ### Example: Download DOTA v1.5 dataset (OBB)
 All values are normalized between 0 and 1.
