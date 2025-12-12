@@ -232,10 +232,22 @@ dm = OBBDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
 dm.setup("fit")
 
 # Visualize training batch (class names loaded from dataset YAML automatically)
-grid = dm.visualize_batch(split="train", output_path="train_viz.jpg")
+fig, axes = dm.visualize_batch(split="train")
 
-# Or display in window (set output_path=None)
-grid = dm.visualize_batch(split="train", output_path=None)
+# Save to file
+fig.savefig("train_viz.jpg", dpi=150, bbox_inches="tight")
+plt.close(fig)
+
+# Or display interactively
+fig, axes = dm.visualize_batch(split="train")
+plt.show()
+plt.close(fig)
+
+# Or customize before saving/showing
+fig, axes = dm.visualize_batch(split="train")
+fig.suptitle("My Custom Title")
+plt.savefig("custom_viz.jpg")
+plt.close(fig)
 ```
 
 The visualization creates a grid image showing all samples in a batch with:

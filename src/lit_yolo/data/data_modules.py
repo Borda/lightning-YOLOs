@@ -27,16 +27,15 @@ logger = logging.getLogger(__name__)
 
 def show_images_in_grid(
     images: list[np.ndarray],
-    output_path: str | Path | None = None,
-) -> np.ndarray:
-    """Display or save images in a grid using matplotlib subplots.
+) -> tuple[Any, np.ndarray]:
+    """Create a grid visualization of images using matplotlib subplots.
 
     Args:
         images: List of images in BGR format (H, W, 3).
-        output_path: Optional path to save the grid. If None, only returns array.
 
     Returns:
-        Grid image as numpy array in BGR format.
+        Tuple of (figure, axes) from matplotlib.
+        Caller is responsible for saving/showing and closing the figure.
 
     Raises:
         ImportError: If matplotlib is not installed.
@@ -70,24 +69,7 @@ def show_images_in_grid(
 
     plt.tight_layout()
 
-    # Save if output path provided
-    if output_path is not None:
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.savefig(str(output_path), dpi=150, bbox_inches="tight")
-        logger.info(f"Saved visualization to {output_path}")
-
-    # Convert figure to numpy array for return value
-    fig.canvas.draw()
-    grid = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-    grid = grid.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    # Convert RGB to BGR for consistency
-    grid = cv2.cvtColor(grid, cv2.COLOR_RGB2BGR)
-
-    # Close figure to free memory
-    plt.close(fig)
-
-    return grid
+    return fig, axes
 
 
 class BaseDataModule(LightningDataModule):
@@ -200,9 +182,8 @@ class BaseDataModule(LightningDataModule):
     def visualize_batch(
         self,
         split: Literal["train", "val"] = "train",
-        output_path: str | Path | None = None,
         batch_idx: int = 0,
-    ) -> np.ndarray:
+    ) -> tuple[Any, np.ndarray]:
         """Visualize a batch from the dataset with annotations.
 
         Creates a grid image showing all samples in the specified batch with drawn bounding boxes
@@ -211,11 +192,11 @@ class BaseDataModule(LightningDataModule):
 
         Args:
             split: Dataset split to visualize ("train" or "val").
-            output_path: Optional path to save the visualization. If None, only returns the image.
             batch_idx: Index of the batch to visualize (default: 0 for first batch).
 
         Returns:
-            Grid image as numpy array in BGR format.
+            Tuple of (fig, axes) matplotlib figure and axes.
+            Caller is responsible for saving/showing and closing the figure with plt.close(fig).
         """
         # Ensure dataset is setup
         if self.train_ds is None or self.val_ds is None:
@@ -235,7 +216,7 @@ class BaseDataModule(LightningDataModule):
         annotated_images = annotate_batch_images(batch, self._draw_boxes_on_image, self.class_names)
 
         # Create and return grid visualization
-        return show_images_in_grid(annotated_images, output_path)
+        return show_images_in_grid(annotated_images)
 
     @staticmethod
     def create_synthetic_dataset(
@@ -529,24 +510,27 @@ def show_dataset(
 
     # Visualize batch
     logger.info(f"Visualizing {split} batch {batch_idx}...")
-    grid = datamodule.visualize_batch(
+    fig, axes = datamodule.visualize_batch(
         split=split,
-        output_path=output,
         batch_idx=batch_idx,
     )
 
-    if output is not None:
-        logger.info(f"✓ Visualization saved to {output}")
-    else:
-        # Display in matplotlib window
-        try:
-            import matplotlib
-            import matplotlib.pyplot as plt
-        except ImportError:
-            logger.error("matplotlib is required to display images. Install it with: pip install matplotlib")
-            logger.info("Or specify --output to save to a file instead.")
-            return
+    # Import matplotlib for saving/showing
+    try:
+        import matplotlib
+        import matplotlib.pyplot as plt
+    except ImportError:
+        logger.error("matplotlib is required for visualization. Install it with: pip install matplotlib")
+        return
 
+    if output is not None:
+        # Save the figure
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
+        logger.info(f"✓ Visualization saved to {output}")
+        plt.close(fig)
+    else:
         # Check if we have a GUI backend available
         backend = matplotlib.get_backend()
         if backend.lower() in ('agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template'):
@@ -554,23 +538,18 @@ def show_dataset(
                 f"No GUI backend available (current: {backend}). Cannot display interactive window."
             )
             logger.info("Running in headless mode. Please specify --output to save to a file instead.")
+            plt.close(fig)
             return
 
-        # Convert BGR to RGB for matplotlib
-        grid_rgb = cv2.cvtColor(grid, cv2.COLOR_BGR2RGB)
-
-        plt.figure(figsize=(12, 8))
-        plt.imshow(grid_rgb)
-        plt.axis("off")
-        plt.title(f"Dataset: {split} batch {batch_idx}")
-        plt.tight_layout()
+        # Display in matplotlib window
         logger.info("Displaying visualization in matplotlib window...")
         try:
             plt.show()
         except Exception as e:
             logger.error(f"Failed to display window: {e}")
             logger.info("Please specify --output to save to a file instead.")
+        finally:
+            plt.close(fig)
 
-    logger.info(f"  Grid shape: {grid.shape}")
     logger.info(f"  Batch size: {batch_size}")
     logger.info("Visualization complete!")
