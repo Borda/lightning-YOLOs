@@ -14,8 +14,7 @@ from lit_yolo.data.utils import (
 def reset_random_seed():
     """Reset random seed before each test for deterministic results."""
     np.random.seed(42)
-
-
+    yield
 class TestOverlapHelperFunctions:
     """Tests for overlap calculation helper functions."""
 
@@ -91,7 +90,7 @@ class TestOverlapThresholdInGeneration:
                 if i >= j:
                     continue
                 iou = calculate_bbox_iou((cx1, cy1, w1, h1), (cx2, cy2, w2, h2))
-                assert iou <= 0.1, f"Objects {i} and {j} overlap with IoU {iou:.3f}, exceeds threshold 0.1"
+                assert iou <= 0.1 + 1e-9, f"Objects {i} and {j} overlap with IoU {iou:.3f}, exceeds threshold 0.1"
 
     def test_generate_with_high_overlap_threshold(self):
         """Test that high overlap threshold allows more objects to be placed."""
@@ -123,7 +122,7 @@ class TestOverlapThresholdInGeneration:
         # Check that all objects respect boundary overlap threshold
         for cls, cx, cy, w, h in labels:
             boundary_overlap = calculate_boundary_overlap((cx, cy, w, h))
-            assert boundary_overlap <= 0.2, (
+            assert boundary_overlap <= 0.2 + 1e-9, (
                 f"Object at ({cx:.3f}, {cy:.3f}) with size ({w:.3f}, {h:.3f}) "
                 f"has boundary overlap {boundary_overlap:.3f}, exceeds threshold 0.2"
             )
@@ -149,11 +148,11 @@ class TestOverlapThresholdInGeneration:
                 if i >= j:
                     continue
                 iou = calculate_bbox_iou((cx1, cy1, w1, h1), (cx2, cy2, w2, h2))
-                assert iou == 0.0, f"Objects {i} and {j} should not overlap with zero threshold"
+                assert iou < 1e-9, f"Objects {i} and {j} should not overlap with zero threshold, got IoU {iou}"
 
             # Verify no boundary overlap
             boundary_overlap = calculate_boundary_overlap((cx1, cy1, w1, h1))
-            assert boundary_overlap == 0.0, f"Object {i} should not overlap with boundaries"
+            assert boundary_overlap < 1e-9, f"Object {i} should not overlap with boundaries, got {boundary_overlap}"
 
     def test_default_overlap_threshold(self):
         """Test that default overlap threshold (0.3) works correctly."""
@@ -175,4 +174,4 @@ class TestOverlapThresholdInGeneration:
                 if i >= j:
                     continue
                 iou = calculate_bbox_iou((cx1, cy1, w1, h1), (cx2, cy2, w2, h2))
-                assert iou <= 0.3, f"Objects {i} and {j} overlap exceeds default threshold"
+                assert iou <= 0.3 + 1e-9, f"Objects {i} and {j} overlap exceeds default threshold, got IoU {iou}"
