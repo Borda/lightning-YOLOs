@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import cv2
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
@@ -19,6 +21,7 @@ from lit_yolo.data.utils import (
     SYNTHETIC_SHAPES,
     annotate_batch_images,
     determine_num_classes,
+    draw_obb_on_image,
     generate_synthetic_sample,
     read_class_names_from_yaml,
 )
@@ -37,15 +40,7 @@ def show_images_in_grid(
     Returns:
         Tuple of (figure, axes) from matplotlib.
         Caller is responsible for saving/showing and closing the figure.
-
-    Raises:
-        ImportError: If matplotlib is not installed.
     """
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError as e:
-        raise ImportError("matplotlib is required for visualization. Install it with: pip install matplotlib") from e
-
     # Determine grid layout
     n = len(images)
     cols = int(np.ceil(np.sqrt(n)))
@@ -368,8 +363,6 @@ class OBBDataModule(BaseDataModule):
         Returns:
             Image with drawn oriented boxes in BGR format.
         """
-        from lit_yolo.data.utils import draw_obb_on_image
-
         return draw_obb_on_image(img, bboxes, class_ids, class_names=class_names)
 
 
@@ -529,14 +522,6 @@ def show_dataset(
         split=split,
         batch_idx=batch_idx,
     )
-
-    # Import matplotlib for saving/showing
-    try:
-        import matplotlib
-        import matplotlib.pyplot as plt
-    except ImportError:
-        logger.error("matplotlib is required for visualization. Install it with: pip install matplotlib")
-        return
 
     if output is not None:
         # Save the figure
