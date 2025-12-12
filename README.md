@@ -204,6 +204,8 @@ Labels should contain 4 corner points (one file per image in `labels/` directory
 class_id x1 y1 x2 y2 x3 y3 x4 y4
 ```
 
+All values are normalized between 0 and 1.
+
 
 ## Dataset Format Support
 
@@ -272,6 +274,16 @@ pip install kaggle
 kaggle datasets download -d andrewmvd/hard-hat-detection
 unzip -q hard-hat-detection.zip -d helmet_dataset
 
+# Create data.yaml file (adjust paths and class names for your dataset)
+cat > helmet_data.yaml << EOF
+train: helmet_dataset/images/train
+val: helmet_dataset/images/valid
+test: helmet_dataset/images/test  # optional
+
+nc: 3  # number of classes
+names: ["head", "helmet", "person"]  # adjust class names as needed
+EOF
+
 # Train with Lightning-YOLOs
 lit-yolo train detect --data helmet_data.yaml --model yolo11n.pt --epochs 50
 ```
@@ -285,7 +297,6 @@ lit-yolo train detect --data helmet_data.yaml --model yolo11n.pt --epochs 50
 Browse more at [Kaggle Datasets](https://www.kaggle.com/datasets)
 
 ### Example: Download DOTA v1.5 dataset (OBB)
-All values are normalized between 0 and 1.
 
 ```bash
 wget https://www.ultralytics.com/assets/DOTAv1.5.zip
