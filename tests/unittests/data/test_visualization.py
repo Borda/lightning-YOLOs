@@ -179,7 +179,7 @@ class TestOBBDataModuleVisualization:
         dm.setup("fit")
 
         # Only 1 batch with 4 samples and batch_size=4
-        with pytest.raises(ValueError, match="out of range"):
+        with pytest.raises(IndexError, match="out of range"):
             dm.visualize_batch("train", batch_idx=10)
 
 
