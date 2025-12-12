@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 import torch
 
-from lit_yolo.data import OBBDataset
 from lit_yolo.data.utils import corners_to_xywhr, obb_to_xyxy, xywh_to_xyxy
 
 
@@ -262,7 +261,8 @@ class TestXywhToXyxy:
         assert abs(result[1, 3].item() - 1.0) < 0.01
 
     def test_pixel_coordinates_with_scaling(self):
-        """Test conversion with pixel coordinates (scale=640 for 640x640 image)."""
+        """Test conversion with pixel coordinates (scale=640 for 640x640
+        image)."""
         # Normalized coordinates
         bbox = torch.tensor([[0.5, 0.5, 0.5, 0.25]])
         result = xywh_to_xyxy(bbox, scale=640.0)

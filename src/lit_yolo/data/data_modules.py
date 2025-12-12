@@ -1,6 +1,4 @@
-"""
-DataModule classes for YOLO using PyTorch Lightning.
-"""
+"""DataModule classes for YOLO using PyTorch Lightning."""
 
 import logging
 from pathlib import Path
@@ -11,6 +9,7 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 
 from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
@@ -18,14 +17,15 @@ from lit_yolo.data.utils import (
     SYNTHETIC_SHAPES,
     determine_num_classes,
     generate_synthetic_sample,
+    read_class_names_from_yaml,
 )
+from lit_yolo.data.visual import annotate_batch_images, draw_obb_on_image, show_images_in_grid
 
 logger = logging.getLogger(__name__)
 
 
 class BaseDataModule(LightningDataModule):
-    """
-    Base Lightning DataModule for YOLO datasets.
+    """Base Lightning DataModule for YOLO datasets.
 
     This abstract base class provides common functionality for YOLO dataset DataModules,
     including dataloader configuration, automatic class detection, and standardized
@@ -65,6 +65,7 @@ class BaseDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self._num_classes = num_classes
+        self._class_names = None
 
     @property
     def num_classes(self) -> int:
@@ -73,8 +74,18 @@ class BaseDataModule(LightningDataModule):
             self._num_classes = determine_num_classes(self.data_root)
         return self._num_classes
 
+    @property
+    def class_names(self) -> list[str] | None:
+        """Get class names from dataset YAML file if available."""
+        if self._class_names is None:
+            self._class_names = read_class_names_from_yaml(self.data_root)
+        return self._class_names
+
     def setup(self, stage: str | None = None):
-        """Setup datasets. Must be implemented by subclasses."""
+        """Setup datasets.
+
+        Must be implemented by subclasses.
+        """
         raise NotImplementedError("Subclasses must implement setup")
 
     def train_dataloader(self) -> DataLoader:
@@ -103,8 +114,66 @@ class BaseDataModule(LightningDataModule):
         )
 
     def _collate(self, batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for batching. Must be implemented by subclasses."""
+        """Collate function for batching.
+
+        Must be implemented by subclasses.
+        """
         raise NotImplementedError("Subclasses must implement _collate")
+
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw bounding boxes on image. Must be implemented by subclasses.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of bounding boxes (format depends on subclass).
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn boxes in BGR format.
+        """
+        raise NotImplementedError("Subclasses must implement _draw_boxes_on_image")
+
+    def visualize_batch(
+        self,
+        split: Literal["train", "val"] = "train",
+        batch_idx: int = 0,
+    ) -> tuple[Any, np.ndarray]:
+        """Visualize a batch from the dataset with annotations.
+
+        Creates a grid image showing all samples in the specified batch with drawn bounding boxes
+        and class labels. Class names are automatically loaded from dataset YAML file if available,
+        otherwise class indices are used.
+
+        Args:
+            split: Dataset split to visualize ("train" or "val").
+            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+
+        Returns:
+            Tuple of (fig, axes) matplotlib figure and axes.
+            Caller is responsible for saving/showing and closing the figure with plt.close(fig).
+        """
+        # Ensure dataset is setup
+        if self.train_ds is None or self.val_ds is None:
+            self.setup("fit")
+
+        # Get the appropriate dataloader
+        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
+
+        # Get the specified batch
+        for i, batch in enumerate(dataloader):
+            if i == batch_idx:
+                break
+        else:
+            raise IndexError(f"Batch index {batch_idx} out of range")
+
+        # Annotate images in the batch
+        annotated_images = annotate_batch_images(batch, self._draw_boxes_on_image, self.class_names)
+
+        # Create and return grid visualization
+        return show_images_in_grid(annotated_images)
 
     @staticmethod
     def create_synthetic_dataset(
@@ -117,12 +186,17 @@ class BaseDataModule(LightningDataModule):
         max_objects: int = 5,
         min_size_ratio: float = 0.1,
         max_size_ratio: float = 0.2,
+        overlap_threshold: float = 0.3,
         seed: int = 42,
     ) -> Path:
         """Create a synthetic dataset with basic geometric shapes for testing.
 
         Generates images containing basic shapes (square, triangle, circle) with different colors
         (red, green, blue). Classes can be defined by shape or color depending on class_mode.
+
+        The overlap_threshold parameter controls object placement to prevent objects from hiding
+        behind each other or extending outside image boundaries. This uses IoU-based overlap
+        detection - lower thresholds create stricter separation but may place fewer objects.
 
         Args:
             root: Root directory where dataset will be created.
@@ -134,6 +208,10 @@ class BaseDataModule(LightningDataModule):
             max_objects: Maximum number of objects per image.
             min_size_ratio: Minimum object size as ratio of image size (default 0.1 = 10%).
             max_size_ratio: Maximum object size as ratio of image size (default 0.2 = 20%).
+            overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                              Lower values mean less overlap is allowed. Default is 0.3 (balanced).
+                              Use 0.0 for no overlap (strictest), 0.1 for minimal overlap,
+                              0.5 for lenient placement allowing denser object packing.
             seed: Random seed for reproducibility.
 
         Returns:
@@ -156,7 +234,7 @@ class BaseDataModule(LightningDataModule):
         # Validate class_mode
         if class_mode not in ("shape", "color"):
             raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-        
+
         root = Path(root)
         np.random.seed(seed)
 
@@ -172,7 +250,7 @@ class BaseDataModule(LightningDataModule):
         # Generate datasets for both splits
         for split, num_imgs in [("train", num_train), ("val", num_val)]:
             logger.info(f"Generating {num_imgs} {split} images...")
-            for i in range(num_imgs):
+            for i in tqdm(range(num_imgs), desc=f"Generating {split} images", unit="img"):
                 img_path = root / "images" / split / f"img_{i:05d}.jpg"
                 label_path = root / "labels" / split / f"img_{i:05d}.txt"
 
@@ -184,6 +262,7 @@ class BaseDataModule(LightningDataModule):
                     class_mode=class_mode,
                     min_size_ratio=min_size_ratio,
                     max_size_ratio=max_size_ratio,
+                    overlap_threshold=overlap_threshold,
                 )
 
                 # Save image
@@ -213,7 +292,8 @@ class OBBDataModule(BaseDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for OBB batches with 5 bbox parameters (cx, cy, w, h, angle)."""
+        """Collate function for OBB batches with 5 bbox parameters (cx, cy, w,
+        h, angle)."""
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -231,6 +311,22 @@ class OBBDataModule(BaseDataModule):
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 5),
         }
 
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw oriented bounding boxes on image.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of shape (N, 5) with [cx, cy, w, h, angle] in normalized coordinates.
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn oriented boxes in BGR format.
+        """
+        return draw_obb_on_image(img, bboxes, class_ids, class_names=class_names)
+
 
 class DetDataModule(BaseDataModule):
     """Lightning DataModule for standard detection datasets - handles all data setup."""
@@ -243,7 +339,8 @@ class DetDataModule(BaseDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for standard detection batches with 4 bbox parameters (cx, cy, w, h)."""
+        """Collate function for standard detection batches with 4 bbox
+        parameters (cx, cy, w, h)."""
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -261,6 +358,24 @@ class DetDataModule(BaseDataModule):
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),  # 4 params: cx, cy, w, h
         }
 
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw axis-aligned bounding boxes on image.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of shape (N, 4) with [cx, cy, w, h] in normalized coordinates.
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn boxes in BGR format.
+        """
+        from lit_yolo.data import draw_bboxes_on_image
+
+        return draw_bboxes_on_image(img, bboxes, class_ids, class_names=class_names)
+
 
 def create_synthetic_dataset(
     output: str = "./synthetic_dataset",
@@ -272,6 +387,7 @@ def create_synthetic_dataset(
     max_objects: int = 5,
     min_size_ratio: float = 0.1,
     max_size_ratio: float = 0.2,
+    overlap_threshold: float = 0.3,
     seed: int = 42,
 ) -> None:
     """CLI wrapper for creating a synthetic dataset with geometric shapes.
@@ -286,12 +402,14 @@ def create_synthetic_dataset(
         max_objects: Maximum number of objects per image.
         min_size_ratio: Minimum object size as ratio of image size.
         max_size_ratio: Maximum object size as ratio of image size.
+        overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                          Lower values mean less overlap is allowed. Default is 0.3.
         seed: Random seed for reproducibility.
     """
     # Validate class_mode
     if class_mode not in ("shape", "color"):
         raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-    
+
     dataset_path = BaseDataModule.create_synthetic_dataset(
         root=output,
         num_samples=num_samples,
@@ -302,6 +420,7 @@ def create_synthetic_dataset(
         max_objects=max_objects,
         min_size_ratio=min_size_ratio,
         max_size_ratio=max_size_ratio,
+        overlap_threshold=overlap_threshold,
         seed=seed,
     )
 

@@ -1,85 +1,81 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=45", "wheel" ]
 
 [project]
 name = "lit-yolo"
 version = "0.1.0"
 description = "YOLO Training with PyTorch Lightning - supports standard detection and OBB"
 readme = "README.md"
-requires-python = ">=3.10"
-license = {file = "LICENSE"}
+keywords = [ "obb", "object-detection", "oriented-bounding-box", "pytorch-lightning", "yolo" ]
+license = { file = "LICENSE" }
 authors = [
-    {name = "Borda", email = "6035284+Borda@users.noreply.github.com"},
+  { name = "Borda", email = "6035284+Borda@users.noreply.github.com" },
 ]
-keywords = ["yolo", "object-detection", "pytorch-lightning", "obb", "oriented-bounding-box"]
+requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
 dependencies = [
-    "pytorch-lightning>=2.0.0,<2.6.0",
-    "ultralytics",
-    "jsonargparse[signatures]",
-    "torchmetrics[detection]",
-    "opencv-python>=4.5.0",
-    "numpy>=1.20.0",
-    "torch>=1.13.0",
-    "pyyaml>=5.1",
+  "jsonargparse[signatures]",
+  "matplotlib>=3.3",
+  "numpy>=1.20",
+  "opencv-python>=4.5",
+  "pytorch-lightning>=2,<2.6",
+  "pyyaml>=5.1",
+  "torch>=2",
+  "torchmetrics[detection]",
+  "tqdm>=4.60",
+  "ultralytics",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov",
-    "pre-commit",
+optional-dependencies.dev = [
+  "pre-commit",
+  "pytest>=7",
+  "pytest-cov",
 ]
-
-[project.urls]
-Homepage = "https://github.com/Borda/lightning-YOLOs"
-Repository = "https://github.com/Borda/lightning-YOLOs"
-Issues = "https://github.com/Borda/lightning-YOLOs/issues"
-
-[project.scripts]
-lit-yolo = "lit_yolo.__main__:main"
+urls.Homepage = "https://github.com/Borda/lightning-YOLOs"
+urls.Issues = "https://github.com/Borda/lightning-YOLOs/issues"
+urls.Repository = "https://github.com/Borda/lightning-YOLOs"
+scripts.lit-yolo = "lit_yolo.__main__:main"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["lit_yolo*"]
+where = [ "src" ]
+include = [ "lit_yolo*" ]
 
 [tool.ruff]
-line-length = 120
 target-version = "py310"
 
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-line-ending = "auto"
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP"]
-ignore = ["E501"]
+line-length = 120
+format.indent-style = "space"
+format.quote-style = "double"
+format.line-ending = "auto"
+lint.select = [ "E", "F", "I", "N", "PT", "RUF100", "UP", "W" ]
+lint.ignore = [ "E501" ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [ "tests" ]
 addopts = [
-    "--doctest-modules",
-    "--doctest-continue-on-failure",
-    "-v",
-    "--color=yes",
+  "--doctest-modules",
+  "--doctest-continue-on-failure",
+  "-v",
+  "--color=yes",
 ]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
+python_files = [ "test_*.py" ]
+python_classes = [ "Test*" ]
+python_functions = [ "test_*" ]

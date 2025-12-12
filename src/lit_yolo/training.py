@@ -1,12 +1,9 @@
-"""
-Training function and configuration for YOLO-OBB and standard detection.
-"""
+"""Training function and configuration for YOLO-OBB and standard detection."""
 
 import logging
 from pathlib import Path
 
 import pytorch_lightning as pl
-import torch
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from lit_yolo.data import DetDataModule, OBBDataModule
@@ -25,7 +22,6 @@ def train_obb(
     warmup_epochs: int = 3,
     img_size: int = 640,
     workers: int = 4,
-    num_classes: int | None = None,
     precision: str = "16-mixed",
     gradient_clip_val: float = 10.0,
     val_check_interval: float = 1.0,
@@ -45,7 +41,6 @@ def train_obb(
         warmup_epochs: Warmup epochs.
         img_size: Input size.
         workers: Dataloader workers.
-        num_classes: Override class count (auto-detected if None).
         precision: Training precision.
         gradient_clip_val: Gradient clipping.
         val_check_interval: Validation frequency.
@@ -54,7 +49,7 @@ def train_obb(
         output_dir: Output directory.
     """
     # DataModule handles dataset creation and class detection
-    dm = OBBDataModule(data, img_size, batch_size, workers, num_classes)
+    dm = OBBDataModule(data, img_size, batch_size, workers)
     nc = dm.num_classes  # Triggers auto-detection if needed
 
     lightning_model = LitYOLOOBB(model, nc, lr, weight_decay, warmup_epochs, img_size)
@@ -62,17 +57,11 @@ def train_obb(
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
-    # Check if precision requires CUDA
-    requires_cuda = precision in ("16-mixed", "bf16-mixed", "16", "bf16")
-    prec = precision if torch.cuda.is_available() or not requires_cuda else "32"
-    if prec != precision:
-        logger.warning("CUDA unavailable, using 32-bit precision")
-
     trainer = pl.Trainer(
         max_epochs=epochs,
         accelerator="auto",
         devices=1,
-        precision=prec,
+        precision=precision,
         callbacks=[
             ModelCheckpoint(
                 dirpath=output / "checkpoints",
@@ -110,7 +99,6 @@ def train_detect(
     warmup_epochs: int = 3,
     img_size: int = 640,
     workers: int = 4,
-    num_classes: int | None = None,
     precision: str = "16-mixed",
     gradient_clip_val: float = 10.0,
     val_check_interval: float = 1.0,
@@ -130,7 +118,6 @@ def train_detect(
         warmup_epochs: Warmup epochs.
         img_size: Input size.
         workers: Dataloader workers.
-        num_classes: Override class count (auto-detected if None).
         precision: Training precision.
         gradient_clip_val: Gradient clipping.
         val_check_interval: Validation frequency.
@@ -139,7 +126,7 @@ def train_detect(
         output_dir: Output directory.
     """
     # DataModule handles dataset creation and class detection
-    dm = DetDataModule(data, img_size, batch_size, workers, num_classes)
+    dm = DetDataModule(data, img_size, batch_size, workers)
     nc = dm.num_classes  # Triggers auto-detection if needed
 
     lightning_model = LitYOLODet(model, nc, lr, weight_decay, warmup_epochs, img_size)
@@ -147,17 +134,11 @@ def train_detect(
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
 
-    # Check if precision requires CUDA
-    requires_cuda = precision in ("16-mixed", "bf16-mixed", "16", "bf16")
-    prec = precision if torch.cuda.is_available() or not requires_cuda else "32"
-    if prec != precision:
-        logger.warning("CUDA unavailable, using 32-bit precision")
-
     trainer = pl.Trainer(
         max_epochs=epochs,
         accelerator="auto",
         devices=1,
-        precision=prec,
+        precision=precision,
         callbacks=[
             ModelCheckpoint(
                 dirpath=output / "checkpoints",

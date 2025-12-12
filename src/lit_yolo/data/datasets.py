@@ -1,6 +1,4 @@
-"""
-Dataset classes for YOLO.
-"""
+"""Dataset classes for YOLO."""
 
 import logging
 import warnings
@@ -17,9 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class BaseDataset(Dataset):
-    """
-    Abstract base class for YOLO-style datasets, providing common functionality for image loading,
-    preprocessing, and letterbox resizing.
+    """Abstract base class for YOLO-style datasets, providing common
+    functionality for image loading, preprocessing, and letterbox resizing.
 
     This class is intended to be subclassed for specific YOLO dataset variants (e.g., oriented bounding box,
     custom label formats). It handles:
@@ -131,11 +128,11 @@ class OBBDataset(BaseDataset):
     @staticmethod
     def _parse_standard_detection_line(parts: list[str], num_classes: int) -> list[float] | None:
         """Parse standard detection format line: class x y w h (no rotation).
-        
+
         Args:
             parts: Line parts split by whitespace.
             num_classes: Number of classes for validation.
-            
+
         Returns:
             List of [cls, x, y, w, h, 0.0] or None if invalid.
         """
@@ -153,11 +150,11 @@ class OBBDataset(BaseDataset):
     @staticmethod
     def _parse_obb_line(parts: list[str], num_classes: int) -> list[float] | None:
         """Parse OBB format line: class + 8 corner coordinates.
-        
+
         Args:
             parts: Line parts split by whitespace.
             num_classes: Number of classes for validation.
-            
+
         Returns:
             List of [cls, cx, cy, w, h, angle] or None if invalid.
         """
@@ -219,7 +216,8 @@ class OBBDataset(BaseDataset):
 
 
 class DetDataset(BaseDataset):
-    """Dataset for standard YOLO detection format (axis-aligned bounding boxes)."""
+    """Dataset for standard YOLO detection format (axis-aligned bounding
+    boxes)."""
 
     def _load_labels(self, path: Path) -> torch.Tensor:
         """Load standard YOLO format: class x_center y_center width height (normalized)."""
