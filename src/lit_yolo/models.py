@@ -14,7 +14,7 @@ import yaml
 from ultralytics import YOLO
 from ultralytics.utils.nms import non_max_suppression
 
-from lit_yolo.data import obb_to_xyxy, xywh_to_xyxy
+from lit_yolo.data.utils import obb_to_xyxy, xywh_to_xyxy
 
 # Optional dependency - torchmetrics may not be installed
 try:

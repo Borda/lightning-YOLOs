@@ -113,6 +113,50 @@ trainer = Trainer(max_epochs=100)
 trainer.fit(model, datamodule=dm)
 ```
 
+### Creating a Synthetic Dataset
+
+For testing and validation, you can create a synthetic dataset with basic geometric shapes using the CLI:
+
+```bash
+# Create synthetic dataset with default settings (shape-based classification)
+lit-yolo create dataset --output ./synthetic_dataset
+
+# Create with custom settings
+lit-yolo create dataset \
+    --output ./synthetic_shapes \
+    --num_samples 150 \
+    --split_ratio 0.8 \
+    --img_size 640 \
+    --class_mode shape \
+    --min_objects 3 --max_objects 3 \
+    --seed 42
+
+# Create with color-based classification
+lit-yolo create dataset \
+    --output ./synthetic_colors \
+    --class_mode color \
+    --num_samples 100
+
+# Then use the synthetic dataset for training
+lit-yolo train detect --data ./synthetic_dataset --model yolo11n.pt --epochs 10
+```
+
+For details on all available parameters, run:
+```bash
+lit-yolo create dataset --help
+```
+
+The synthetic dataset feature generates:
+- Images with three basic shapes: square, triangle, and circle
+- Each shape rendered in a different color: red, green, and blue
+- Valid YOLO format labels for all objects
+- Both training and validation splits
+
+This is useful for:
+- Testing the implementation is working correctly
+- Verifying that metrics and loss are converging
+- Quick validation of changes without downloading large datasets
+
 ## Package Structure
 
 ```
@@ -166,6 +210,7 @@ All values are normalized between 0 and 1.
 - ✅ PyTorch Lightning integration
 - ✅ Modular package structure
 - ✅ Standard detection and OBB support
+- ✅ Synthetic dataset generation for testing and validation
 
 ### Dataset Format Support
 
