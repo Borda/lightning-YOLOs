@@ -1,7 +1,5 @@
 """Unit tests for visualization functionality."""
 
-import tempfile
-from pathlib import Path
 
 import cv2
 import numpy as np
@@ -146,146 +144,113 @@ class TestCreateBatchGrid:
 class TestOBBDataModuleVisualization:
     """Tests for OBBDataModule visualize_batch method."""
 
-    def test_visualize_train_batch(self):
-        """Test visualizing training batch."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10, split_ratio=0.7)
+    @pytest.mark.parametrize("split,batch_size", [("train", 4), ("val", 2)])
+    def test_visualize_batch(self, tmp_path, split, batch_size):
+        """Test visualizing training and validation batches."""
+        root = tmp_path / "synthetic"
+        _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10, split_ratio=0.7)
 
-            dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = OBBDataModule(data=str(root), img_size=320, batch_size=batch_size, num_classes=3)
+        dm.setup("fit")
 
-            grid = dm.visualize_batch("train")
+        grid = dm.visualize_batch(split)
 
-            # Check grid is created
-            assert grid.shape[0] > 0
-            assert grid.shape[1] > 0
-            assert grid.shape[2] == 3
+        # Check grid is created
+        assert grid.shape[0] > 0
+        assert grid.shape[1] > 0
+        assert grid.shape[2] == 3
 
-    def test_visualize_val_batch(self):
-        """Test visualizing validation batch."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10, split_ratio=0.7)
-
-            dm = OBBDataModule(data=str(root), img_size=320, batch_size=2, num_classes=3)
-            dm.setup("fit")
-
-            grid = dm.visualize_batch("val")
-
-            assert grid.shape[0] > 0
-            assert grid.shape[1] > 0
-
-    def test_save_visualization(self):
+    def test_save_visualization(self, tmp_path):
         """Test saving visualization to file."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            output_path = Path(tmpdir) / "output" / "viz.jpg"
-            _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10)
+        root = tmp_path / "synthetic"
+        output_path = tmp_path / "output" / "viz.jpg"
+        _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10)
 
-            dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
+        dm.setup("fit")
 
-            grid = dm.visualize_batch("train", output_path=output_path)
+        grid = dm.visualize_batch("train", output_path=output_path)
 
-            # Check file is created
-            assert output_path.exists()
-            # Check can read the saved image
-            saved_img = cv2.imread(str(output_path))
-            assert saved_img is not None
-            assert saved_img.shape == grid.shape
+        # Check file is created
+        assert output_path.exists()
+        # Check can read the saved image
+        saved_img = cv2.imread(str(output_path))
+        assert saved_img is not None
+        assert saved_img.shape == grid.shape
 
-    def test_with_class_names(self):
+    def test_with_class_names(self, tmp_path):
         """Test visualization with class names."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10, class_mode="shape")
+        root = tmp_path / "synthetic"
+        _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10, class_mode="shape")
 
-            dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
+        dm.setup("fit")
 
-            class_names = ["square", "triangle", "circle"]
-            grid = dm.visualize_batch("train", class_names=class_names)
+        class_names = ["square", "triangle", "circle"]
+        grid = dm.visualize_batch("train", class_names=class_names)
 
-            assert grid.shape[0] > 0
-            assert grid.shape[1] > 0
+        assert grid.shape[0] > 0
+        assert grid.shape[1] > 0
 
-    def test_invalid_batch_idx(self):
+    def test_invalid_batch_idx(self, tmp_path):
         """Test that invalid batch index raises error."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = OBBDataModule.create_synthetic_dataset(root, num_samples=4)
+        root = tmp_path / "synthetic"
+        _ = OBBDataModule.create_synthetic_dataset(root, num_samples=4)
 
-            dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
+        dm.setup("fit")
 
-            # Only 1 batch with 4 samples and batch_size=4
-            with pytest.raises(ValueError, match="out of range"):
-                dm.visualize_batch("train", batch_idx=10)
+        # Only 1 batch with 4 samples and batch_size=4
+        with pytest.raises(ValueError, match="out of range"):
+            dm.visualize_batch("train", batch_idx=10)
 
 
 class TestDetDataModuleVisualization:
     """Tests for DetDataModule visualize_batch method."""
 
-    def test_visualize_train_batch(self):
-        """Test visualizing training batch."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = DetDataModule.create_synthetic_dataset(root, num_samples=10, split_ratio=0.7)
+    @pytest.mark.parametrize("split,batch_size", [("train", 4), ("val", 2)])
+    def test_visualize_batch(self, tmp_path, split, batch_size):
+        """Test visualizing training and validation batches."""
+        root = tmp_path / "synthetic"
+        _ = DetDataModule.create_synthetic_dataset(root, num_samples=10, split_ratio=0.7)
 
-            dm = DetDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = DetDataModule(data=str(root), img_size=320, batch_size=batch_size, num_classes=3)
+        dm.setup("fit")
 
-            grid = dm.visualize_batch("train")
+        grid = dm.visualize_batch(split)
 
-            assert grid.shape[0] > 0
-            assert grid.shape[1] > 0
-            assert grid.shape[2] == 3
+        assert grid.shape[0] > 0
+        assert grid.shape[1] > 0
+        assert grid.shape[2] == 3
 
-    def test_visualize_val_batch(self):
-        """Test visualizing validation batch."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = DetDataModule.create_synthetic_dataset(root, num_samples=10, split_ratio=0.7)
-
-            dm = DetDataModule(data=str(root), img_size=320, batch_size=2, num_classes=3)
-            dm.setup("fit")
-
-            grid = dm.visualize_batch("val")
-
-            assert grid.shape[0] > 0
-            assert grid.shape[1] > 0
-
-    def test_save_visualization(self):
+    def test_save_visualization(self, tmp_path):
         """Test saving visualization to file."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            output_path = Path(tmpdir) / "output" / "viz.jpg"
-            _ = DetDataModule.create_synthetic_dataset(root, num_samples=10)
+        root = tmp_path / "synthetic"
+        output_path = tmp_path / "output" / "viz.jpg"
+        _ = DetDataModule.create_synthetic_dataset(root, num_samples=10)
 
-            dm = DetDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = DetDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
+        dm.setup("fit")
 
-            grid = dm.visualize_batch("train", output_path=output_path)
+        grid = dm.visualize_batch("train", output_path=output_path)
 
-            # Check file is created
-            assert output_path.exists()
-            # Check can read the saved image
-            saved_img = cv2.imread(str(output_path))
-            assert saved_img is not None
-            assert saved_img.shape == grid.shape
+        # Check file is created
+        assert output_path.exists()
+        # Check can read the saved image
+        saved_img = cv2.imread(str(output_path))
+        assert saved_img is not None
+        assert saved_img.shape == grid.shape
 
-    def test_with_class_names(self):
+    def test_with_class_names(self, tmp_path):
         """Test visualization with class names."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir) / "synthetic"
-            _ = DetDataModule.create_synthetic_dataset(root, num_samples=10, class_mode="color")
+        root = tmp_path / "synthetic"
+        _ = DetDataModule.create_synthetic_dataset(root, num_samples=10, class_mode="color")
 
-            dm = DetDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
-            dm.setup("fit")
+        dm = DetDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
+        dm.setup("fit")
 
-            class_names = ["red", "green", "blue"]
-            grid = dm.visualize_batch("train", class_names=class_names)
+        class_names = ["red", "green", "blue"]
+        grid = dm.visualize_batch("train", class_names=class_names)
 
-            assert grid.shape[0] > 0
-            assert grid.shape[1] > 0
+        assert grid.shape[0] > 0
+        assert grid.shape[1] > 0

@@ -204,37 +204,32 @@ All values are normalized between 0 and 1.
 
 Visualize your dataset batches with drawn annotations to verify data loading and augmentation:
 
-### Using the Example Script
+### Using the CLI
 
 ```bash
-# Quick demo with synthetic dataset
-python examples/visualize_datamodule.py --synthetic --output viz.jpg
+# Visualize dataset and save to file
+lit-yolo show dataset --data /path/to/dataset --output viz.jpg
 
-# Visualize your own dataset
-python examples/visualize_datamodule.py --data /path/to/dataset --output viz.jpg
+# Display in matplotlib window (interactive)
+lit-yolo show dataset --data /path/to/dataset
 
-# Visualize with class names
-python examples/visualize_datamodule.py \
-    --data /path/to/dataset \
-    --class-names cat dog bird \
-    --batch-size 4 \
-    --output train_viz.jpg
+# Visualize validation set with custom batch size
+lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
 
-# Visualize validation set with OBB
-python examples/visualize_datamodule.py \
-    --data /path/to/dataset \
-    --obb \
-    --split val \
-    --output val_obb_viz.jpg
+# With class names
+lit-yolo show dataset --data /path/to/dataset --class_names cat dog bird
+
+# Use --help for all options
+lit-yolo show dataset --help
 ```
 
 ### Using the Python API
 
 ```python
-from lit_yolo.data import DetDataModule, OBBDataModule
+from lit_yolo.data import OBBDataModule
 
-# Standard detection
-dm = DetDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
+# Create datamodule (supports both OBB and standard detection)
+dm = OBBDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
 dm.setup("fit")
 
 # Visualize training batch
@@ -244,20 +239,14 @@ grid = dm.visualize_batch(
     class_names=["cat", "dog", "bird"]
 )
 
-# OBB detection
-dm_obb = OBBDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
-dm_obb.setup("fit")
-
-# Visualize with oriented boxes
-grid = dm_obb.visualize_batch(split="train", output_path="obb_viz.jpg")
+# Or display in window (set output_path=None)
+grid = dm.visualize_batch(split="train", output_path=None)
 ```
 
 The visualization creates a grid image showing all samples in a batch with:
 - Drawn bounding boxes (axis-aligned or oriented)
 - Class labels and indices
 - Color-coded boxes per class
-
-See [examples/README.md](../examples/README.md) for more visualization options.
 
 ## Features
 

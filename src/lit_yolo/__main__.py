@@ -5,6 +5,8 @@ Usage:
     python -m lit_yolo train obb --data /path/to/dataset --model yolo11n-obb.pt
     python -m lit_yolo train detect --data /path/to/dataset --model yolo11n.pt
     python -m lit_yolo train obb --config config.yaml
+    python -m lit_yolo show dataset --data /path/to/dataset --output viz.jpg
+    python -m lit_yolo create dataset --output ./synthetic_dataset
 """
 
 import logging
@@ -17,7 +19,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-from lit_yolo.data import create_synthetic_dataset
+from lit_yolo.data import create_synthetic_dataset, show_dataset
 from lit_yolo.training import train_detect, train_obb
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,7 @@ def main():
         {
             "train": {"obb": train_obb, "detect": train_detect},
             "create": {"dataset": create_synthetic_dataset},
+            "show": {"dataset": show_dataset},
         },
         as_positional=False,
     )

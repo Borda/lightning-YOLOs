@@ -521,3 +521,87 @@ def create_synthetic_dataset(
     )
 
     logger.info(f"Synthetic dataset created successfully at: {dataset_path}")
+
+
+def show_dataset(
+    data: str,
+    output: str | None = None,
+    split: str = "train",
+    batch_size: int = 8,
+    batch_idx: int = 0,
+    img_size: int = 640,
+    num_workers: int = 4,
+    num_classes: int | None = None,
+    class_names: list[str] | None = None,
+) -> None:
+    """Visualize a batch from the dataset with annotations.
+
+    Creates a grid image showing all samples in the specified batch with drawn
+    bounding boxes (oriented or axis-aligned) and class labels. If output path
+    is not provided, displays the image in a matplotlib window.
+
+    Args:
+        data: Path to dataset root directory (with images/ and labels/ subdirs).
+        output: Output path for visualization image. If None, shows in matplotlib window.
+        split: Dataset split to visualize ("train" or "val").
+        batch_size: Number of images in the batch to visualize.
+        batch_idx: Index of batch to visualize (0 for first batch).
+        img_size: Image size for loading.
+        num_workers: Number of dataloader workers.
+        num_classes: Number of classes (auto-detected if None).
+        class_names: Optional list of class names for labels.
+
+    Examples:
+        >>> # From command line:
+        >>> # lit-yolo show dataset --data /path/to/dataset --output viz.jpg
+        >>> # lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
+        >>> # lit-yolo show dataset --data /path/to/dataset  # Shows in window
+    """
+    # Use OBB datamodule as it supports both oriented and plain bounding boxes
+    logger.info(f"Loading dataset from {data}...")
+    datamodule = OBBDataModule(
+        data=data,
+        img_size=img_size,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        num_classes=num_classes,
+    )
+
+    # Setup datamodule
+    datamodule.setup("fit")
+    logger.info(f"Detected {datamodule.num_classes} classes")
+
+    # Visualize batch
+    logger.info(f"Visualizing {split} batch {batch_idx}...")
+    grid = datamodule.visualize_batch(
+        split=split,
+        output_path=output,
+        batch_idx=batch_idx,
+        class_names=class_names,
+    )
+
+    if output is not None:
+        logger.info(f"✓ Visualization saved to {output}")
+    else:
+        # Display in matplotlib window
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            logger.error("matplotlib is required to display images. Install it with: pip install matplotlib")
+            logger.info("Or specify --output to save to a file instead.")
+            return
+
+        # Convert BGR to RGB for matplotlib
+        grid_rgb = cv2.cvtColor(grid, cv2.COLOR_BGR2RGB)
+
+        plt.figure(figsize=(12, 8))
+        plt.imshow(grid_rgb)
+        plt.axis("off")
+        plt.title(f"Dataset: {split} batch {batch_idx}")
+        plt.tight_layout()
+        logger.info("Displaying visualization in matplotlib window...")
+        plt.show()
+
+    logger.info(f"  Grid shape: {grid.shape}")
+    logger.info(f"  Batch size: {batch_size}")
+    logger.info("Visualization complete!")

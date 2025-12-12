@@ -60,32 +60,23 @@ python -m py_tree DOTAv1.5 -d 1
 
 ## Visualization
 
-Visualize your dataset batches with annotations:
+Visualize your dataset batches with drawn bounding box annotations:
 
 ```bash
-# Quick demo with synthetic dataset
-python examples/visualize_datamodule.py --synthetic --output viz.jpg
+# Visualize dataset and save to file
+lit-yolo show dataset --data /path/to/dataset --output viz.jpg
 
-# Visualize your own dataset
-python examples/visualize_datamodule.py --data /path/to/dataset --output viz.jpg
+# Display in matplotlib window (interactive)
+lit-yolo show dataset --data /path/to/dataset
 
-# Visualize with class names
-python examples/visualize_datamodule.py --data /path/to/dataset \
-    --class-names cat dog bird --output viz.jpg
+# Visualize validation set with custom batch size
+lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
+
+# Use --help for all options
+lit-yolo show dataset --help
 ```
 
-Or in Python:
-
-```python
-from lit_yolo.data import DetDataModule
-
-# Create datamodule and visualize
-dm = DetDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
-dm.setup("fit")
-grid = dm.visualize_batch(split="train", output_path="viz.jpg")
-```
-
-See [examples/README.md](examples/README.md) for more visualization options.
+Supports both oriented and axis-aligned bounding boxes automatically.
 
 For detailed usage instructions, see [src/README.md](src/README.md).
 
