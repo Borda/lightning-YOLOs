@@ -10,6 +10,12 @@ from lit_yolo.data.utils import (
 )
 
 
+@pytest.fixture(autouse=True)
+def reset_random_seed():
+    """Reset random seed before each test for deterministic results."""
+    np.random.seed(42)
+
+
 class TestOverlapHelperFunctions:
     """Tests for overlap calculation helper functions."""
 
@@ -65,7 +71,6 @@ class TestOverlapThresholdInGeneration:
 
     def test_generate_with_low_overlap_threshold(self):
         """Test that low overlap threshold prevents objects from overlapping significantly."""
-        np.random.seed(42)
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=5,
@@ -89,7 +94,6 @@ class TestOverlapThresholdInGeneration:
 
     def test_generate_with_high_overlap_threshold(self):
         """Test that high overlap threshold allows more objects to be placed."""
-        np.random.seed(42)
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=5,
@@ -105,7 +109,6 @@ class TestOverlapThresholdInGeneration:
 
     def test_objects_within_boundaries(self):
         """Test that objects respect boundary overlap threshold."""
-        np.random.seed(123)
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=5,
@@ -126,7 +129,6 @@ class TestOverlapThresholdInGeneration:
 
     def test_generate_with_zero_overlap_threshold(self):
         """Test that zero overlap threshold prevents any overlap."""
-        np.random.seed(42)
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=3,
@@ -154,7 +156,6 @@ class TestOverlapThresholdInGeneration:
 
     def test_default_overlap_threshold(self):
         """Test that default overlap threshold (0.3) works correctly."""
-        np.random.seed(42)
         img, labels = generate_synthetic_sample(
             img_size=640,
             min_objects=4,
