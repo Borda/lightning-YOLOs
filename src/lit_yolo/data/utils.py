@@ -445,8 +445,8 @@ def generate_synthetic_sample(
 
     # Generate objects (cycling through shapes and colors)
     for i in range(num_objects):
-        shape = SYNTHETIC_SHAPES[i % len(SYNTHETIC_SHAPES)]
-        color_name = color_names[i % len(color_names)]
+        shape = np.random.choice(SYNTHETIC_SHAPES)
+        color_name = np.random.choice(color_names)
         color = SYNTHETIC_COLORS[color_name]
 
         # Determine class based on mode

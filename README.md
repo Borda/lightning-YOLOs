@@ -39,22 +39,20 @@ ______________________________________________________________________
 
 ## ✨ Features
 
-| Feature                   | Description                                                                            | Status          |
-| ------------------------- | -------------------------------------------------------------------------------------- | --------------- |
-| **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                       | 🧪 Experimental |
-| **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects               | 🧪 Experimental |
-| 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                          | 🔄 In Progress  |
-| **⚡ Mixed Precision**    | Various Precisions and Traininng strategies with PyTorch Lightning for faster training | ✅ Implemented  |
-| **🔧 Auto Configuration** | Automatic class detection from dataset                                                 | ✅ Implemented  |
-| **🏗️ Modular Design**     | Clean, extensible architecture with PyTorch Lightning                                  | ✅ Implemented  |
-| **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                                       | ✅ Implemented  |
-| **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                              | ✅ Implemented  |
+| Feature                   | Description                                                                            | Status |
+| ------------------------- | -------------------------------------------------------------------------------------- | ------ |
+| **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                       | 🧪     |
+| **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects               | 🧪     |
+| 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                          | 🔄     |
+| **⚡ Mixed Precision**    | Various Precisions and Traininng strategies with PyTorch Lightning for faster training | ✅     |
+| **🔧 Auto Configuration** | Automatic class detection from dataset                                                 | ✅     |
+| **🏗️ Modular Design**     | Clean, extensible architecture with PyTorch Lightning                                  | ✅     |
+| **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                                       | ✅     |
+| **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                              | ✅     |
 
 ______________________________________________________________________
 
 ## 📦 Installation
-
-> ⚠️ **Educational Use Only**: Install in a virtual environment for experimentation and learning.
 
 ```bash
 # Create a virtual environment (recommended)

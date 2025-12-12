@@ -1,5 +1,8 @@
+from typing import Any
+
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 from lit_yolo.data.utils import DEFAULT_COLORS
 
@@ -218,3 +221,42 @@ def annotate_batch_images(
         annotated_images.append(img)
 
     return annotated_images
+
+
+def show_images_in_grid(
+    images: list[np.ndarray],
+) -> tuple[Any, np.ndarray]:
+    """Create a grid visualization of images using matplotlib subplots.
+
+    Args:
+        images: List of images in BGR format (H, W, 3).
+
+    Returns:
+        Tuple of (figure, axes) from matplotlib.
+        Caller is responsible for saving/showing and closing the figure.
+    """
+    # Determine grid layout
+    n = len(images)
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n / cols))
+
+    # Create figure with subplots
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 4))
+    if n == 1:
+        axes = np.array([axes])
+    axes = axes.flatten()
+
+    # Plot each image
+    for idx, (ax, img) in enumerate(zip(axes, images)):
+        # Convert BGR to RGB for matplotlib
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        ax.imshow(img_rgb)
+        ax.axis("off")
+
+    # Hide unused subplots
+    for idx in range(n, len(axes)):
+        axes[idx].axis("off")
+
+    plt.tight_layout()
+
+    return fig, axes

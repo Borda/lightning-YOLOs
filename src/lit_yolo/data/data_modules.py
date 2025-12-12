@@ -5,8 +5,6 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import cv2
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
@@ -21,48 +19,9 @@ from lit_yolo.data.utils import (
     generate_synthetic_sample,
     read_class_names_from_yaml,
 )
-from lit_yolo.data.visual import annotate_batch_images, draw_obb_on_image
+from lit_yolo.data.visual import annotate_batch_images, draw_obb_on_image, show_images_in_grid
 
 logger = logging.getLogger(__name__)
-
-
-def show_images_in_grid(
-    images: list[np.ndarray],
-) -> tuple[Any, np.ndarray]:
-    """Create a grid visualization of images using matplotlib subplots.
-
-    Args:
-        images: List of images in BGR format (H, W, 3).
-
-    Returns:
-        Tuple of (figure, axes) from matplotlib.
-        Caller is responsible for saving/showing and closing the figure.
-    """
-    # Determine grid layout
-    n = len(images)
-    cols = int(np.ceil(np.sqrt(n)))
-    rows = int(np.ceil(n / cols))
-
-    # Create figure with subplots
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 4))
-    if n == 1:
-        axes = np.array([axes])
-    axes = axes.flatten()
-
-    # Plot each image
-    for idx, (ax, img) in enumerate(zip(axes, images)):
-        # Convert BGR to RGB for matplotlib
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        ax.imshow(img_rgb)
-        ax.axis("off")
-
-    # Hide unused subplots
-    for idx in range(n, len(axes)):
-        axes[idx].axis("off")
-
-    plt.tight_layout()
-
-    return fig, axes
 
 
 class BaseDataModule(LightningDataModule):
@@ -466,98 +425,3 @@ def create_synthetic_dataset(
     )
 
     logger.info(f"Synthetic dataset created successfully at: {dataset_path}")
-
-
-def show_dataset(
-    data: str,
-    output: str | None = None,
-    split: Literal["train", "val"] = "train",
-    batch_size: int = 8,
-    batch_idx: int = 0,
-    img_size: int = 640,
-    num_workers: int = 4,
-    num_classes: int | None = None,
-) -> None:
-    """Visualize a batch from the dataset with annotations.
-
-    Creates a grid image showing all samples in the specified batch with drawn
-    bounding boxes (oriented or axis-aligned) and class labels. Class names are
-    automatically loaded from the dataset YAML file if available, otherwise class
-    indices are used. If output path is not provided, displays the image in a matplotlib window.
-
-    Args:
-        data: Path to dataset root directory (with images/ and labels/ subdirs).
-        output: Output path for visualization image. If None, shows in matplotlib window.
-        split: Dataset split to visualize ("train" or "val").
-        batch_size: Number of images in the batch to visualize.
-        batch_idx: Index of batch to visualize (0 for first batch).
-        img_size: Image size for loading.
-        num_workers: Number of dataloader workers.
-        num_classes: Number of classes (auto-detected if None).
-
-    Examples:
-        From command line::
-
-            lit-yolo show dataset --data /path/to/dataset --output viz.jpg
-            lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
-            lit-yolo show dataset --data /path/to/dataset
-    """
-    # Use OBB datamodule as it supports both oriented and plain bounding boxes
-    logger.info(f"Loading dataset from {data}...")
-    datamodule = OBBDataModule(
-        data=data,
-        img_size=img_size,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        num_classes=num_classes,
-    )
-
-    # Setup datamodule
-    datamodule.setup("fit")
-    logger.info(f"Detected {datamodule.num_classes} classes")
-
-    # Log class names if available
-    if datamodule.class_names:
-        logger.info(f"Loaded class names from dataset YAML: {datamodule.class_names}")
-
-    # Visualize batch
-    logger.info(f"Visualizing {split} batch {batch_idx}...")
-    fig, axes = datamodule.visualize_batch(
-        split=split,
-        batch_idx=batch_idx,
-    )
-
-    if output is not None:
-        # Save the figure
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
-        logger.info(f"✓ Visualization saved to {output}")
-        plt.close(fig)
-    else:
-        # Check if we have a GUI backend available
-        backend = matplotlib.get_backend()
-        if backend.lower() in ("agg", "cairo", "pdf", "pgf", "ps", "svg", "template"):
-            logger.warning(f"No GUI backend available (current: {backend}). Cannot display interactive window.")
-            logger.info("Running in headless mode. Please specify --output to save to a file instead.")
-            plt.close(fig)
-            return
-
-        # Display in matplotlib window
-        logger.info("Displaying visualization in matplotlib window...")
-        try:
-            plt.show()
-        except Exception as e:
-            import warnings
-
-            warnings.warn(
-                f"Failed to display matplotlib window: {e}. "
-                "Please specify --output to save to a file instead, or ensure GUI backend is available.",
-                UserWarning,
-                stacklevel=2,
-            )
-        finally:
-            plt.close(fig)
-
-    logger.info(f"  Batch size: {batch_size}")
-    logger.info("Visualization complete!")
