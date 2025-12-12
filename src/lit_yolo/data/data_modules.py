@@ -211,7 +211,7 @@ class BaseDataModule(LightningDataModule):
             if i == batch_idx:
                 break
         else:
-            raise ValueError(f"Batch index {batch_idx} out of range")
+            raise IndexError(f"Batch index {batch_idx} out of range")
 
         # Annotate images in the batch
         annotated_images = annotate_batch_images(batch, self._draw_boxes_on_image, self.class_names)
