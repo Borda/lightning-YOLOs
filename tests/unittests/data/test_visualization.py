@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from lit_yolo.data import DetDataModule, OBBDataModule
-from lit_yolo.data.utils import create_batch_grid, draw_bboxes_on_image, draw_obb_on_image
+from lit_yolo.data.utils import draw_bboxes_on_image, draw_obb_on_image
 
 
 class TestDrawBboxesOnImage:
@@ -105,40 +105,6 @@ class TestDrawOBBOnImage:
 
         assert result.shape == (640, 640, 3)
 
-
-class TestCreateBatchGrid:
-    """Tests for create_batch_grid function."""
-
-    def test_basic_grid(self):
-        """Test basic grid creation."""
-        imgs = [np.ones((100, 100, 3), dtype=np.uint8) * i for i in range(4)]
-        grid = create_batch_grid(imgs, grid_size=(2, 2))
-
-        # Grid should be larger than individual images due to borders
-        assert grid.shape[0] > 100
-        assert grid.shape[1] > 100
-
-    def test_auto_grid_size(self):
-        """Test automatic grid size determination."""
-        imgs = [np.ones((100, 100, 3), dtype=np.uint8) for _ in range(6)]
-        grid = create_batch_grid(imgs)
-
-        # Should create grid (roughly square)
-        assert grid.shape[0] > 0
-        assert grid.shape[1] > 0
-
-    def test_single_image(self):
-        """Test grid with single image."""
-        imgs = [np.ones((100, 100, 3), dtype=np.uint8) * 128]
-        grid = create_batch_grid(imgs)
-
-        assert grid.shape[0] > 100  # Includes border
-        assert grid.shape[1] > 100
-
-    def test_empty_images_list(self):
-        """Test that empty list raises error."""
-        with pytest.raises(ValueError, match="empty"):
-            create_batch_grid([])
 
 
 class TestOBBDataModuleVisualization:

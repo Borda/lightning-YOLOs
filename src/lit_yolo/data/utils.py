@@ -28,6 +28,58 @@ DEFAULT_COLORS = [
 ]
 
 
+def read_class_names_from_yaml(data_path: str | Path) -> list[str] | None:
+    """Read class names from dataset YAML file.
+
+    Looks for data.yaml or dataset.yaml in the dataset directory and extracts class names.
+
+    Args:
+        data_path: Path to dataset root directory.
+
+    Returns:
+        List of class names if found in YAML file, None otherwise.
+
+    Examples:
+        >>> from pathlib import Path
+        >>> import tempfile
+        >>> with tempfile.TemporaryDirectory() as tmpdir:
+        ...     yaml_path = Path(tmpdir) / "data.yaml"
+        ...     yaml_path.write_text("names: ['cat', 'dog', 'bird']")
+        ...     names = read_class_names_from_yaml(tmpdir)
+        >>> names is not None
+        True
+    """
+    try:
+        import yaml
+    except ImportError:
+        logger.debug("PyYAML not installed, cannot read class names from YAML file")
+        return None
+
+    data_path = Path(data_path)
+
+    # Try common YAML file names
+    for yaml_name in ["data.yaml", "dataset.yaml", "data.yml", "dataset.yml"]:
+        yaml_file = data_path / yaml_name
+        if yaml_file.exists():
+            try:
+                with open(yaml_file) as f:
+                    data = yaml.safe_load(f)
+                    if data and "names" in data:
+                        names = data["names"]
+                        # Handle both list and dict formats
+                        if isinstance(names, dict):
+                            # Convert dict to list sorted by key
+                            names = [names[i] for i in sorted(names.keys())]
+                        logger.debug(f"Loaded {len(names)} class names from {yaml_file}")
+                        return names
+            except Exception as e:
+                logger.debug(f"Failed to read class names from {yaml_file}: {e}")
+                continue
+
+    logger.debug(f"No class names found in YAML files at {data_path}")
+    return None
+
+
 # Available shapes for synthetic dataset generation
 SYNTHETIC_SHAPES = ["square", "triangle", "circle"]
 
@@ -469,61 +521,3 @@ def draw_obb_on_image(
     return img_draw
 
 
-def create_batch_grid(
-    images: list[np.ndarray],
-    grid_size: tuple[int, int] | None = None,
-    border: int = 2,
-    border_color: tuple[int, int, int] = (255, 255, 255),
-) -> np.ndarray:
-    """Create a grid image from a list of images.
-
-    Args:
-        images: List of images (H, W, 3) in BGR format.
-        grid_size: Tuple of (rows, cols) for the grid. If None, automatically determined.
-        border: Border width in pixels between images.
-        border_color: BGR color for borders.
-
-    Returns:
-        Grid image combining all input images.
-
-    Examples:
-        >>> import numpy as np
-        >>> imgs = [np.ones((100, 100, 3), dtype=np.uint8) * 128 for _ in range(4)]
-        >>> grid = create_batch_grid(imgs, grid_size=(2, 2))
-        >>> grid.shape[0] > 100 and grid.shape[1] > 100
-        True
-    """
-    if not images:
-        raise ValueError("Images list is empty")
-
-    # Determine grid size
-    n = len(images)
-    if grid_size is None:
-        # Create roughly square grid
-        cols = int(np.ceil(np.sqrt(n)))
-        rows = int(np.ceil(n / cols))
-        grid_size = (rows, cols)
-    else:
-        rows, cols = grid_size
-
-    # Get image dimensions (assuming all images are same size)
-    h, w = images[0].shape[:2]
-
-    # Calculate grid dimensions
-    grid_h = rows * h + (rows + 1) * border
-    grid_w = cols * w + (cols + 1) * border
-
-    # Create grid canvas
-    grid = np.full((grid_h, grid_w, 3), border_color, dtype=np.uint8)
-
-    # Place images in grid
-    for idx, img in enumerate(images):
-        row = idx // cols
-        col = idx % cols
-
-        y_start = border + row * (h + border)
-        x_start = border + col * (w + border)
-
-        grid[y_start : y_start + h, x_start : x_start + w] = img
-
-    return grid

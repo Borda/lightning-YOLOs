@@ -216,7 +216,8 @@ lit-yolo show dataset --data /path/to/dataset
 # Visualize validation set with custom batch size
 lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
 
-# With class names
+# Class names are automatically loaded from dataset YAML file (data.yaml/dataset.yaml)
+# Or manually override with --class_names
 lit-yolo show dataset --data /path/to/dataset --class_names cat dog bird
 
 # Use --help for all options
@@ -232,7 +233,10 @@ from lit_yolo.data import OBBDataModule
 dm = OBBDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
 dm.setup("fit")
 
-# Visualize training batch
+# Visualize training batch (class names loaded from dataset YAML automatically)
+grid = dm.visualize_batch(split="train", output_path="train_viz.jpg")
+
+# Or manually override class names
 grid = dm.visualize_batch(
     split="train",
     output_path="train_viz.jpg",

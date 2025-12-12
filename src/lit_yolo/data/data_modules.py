@@ -16,7 +16,6 @@ from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     SYNTHETIC_COLORS,
     SYNTHETIC_SHAPES,
-    create_batch_grid,
     determine_num_classes,
     generate_synthetic_sample,
 )
@@ -133,20 +132,26 @@ class BaseDataModule(LightningDataModule):
         """Visualize a batch from the dataset with annotations.
 
         Creates a grid image showing all samples in the specified batch with drawn bounding boxes
-        and class labels.
+        and class labels. Class names are automatically loaded from dataset YAML file if available.
 
         Args:
             split: Dataset split to visualize ("train" or "val").
             output_path: Optional path to save the visualization. If None, only returns the image.
             batch_idx: Index of the batch to visualize (default: 0 for first batch).
-            class_names: Optional list of class names for labels.
+            class_names: Optional list of class names for labels. If None, will try to load from dataset YAML.
 
         Returns:
             Grid image as numpy array in BGR format.
         """
+        from lit_yolo.data.utils import read_class_names_from_yaml
+
         # Ensure dataset is setup
         if self.train_ds is None or self.val_ds is None:
             self.setup("fit")
+
+        # Try to load class names from YAML if not provided
+        if class_names is None:
+            class_names = read_class_names_from_yaml(self.data_root)
 
         # Get the appropriate dataloader
         dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
@@ -193,15 +198,8 @@ class BaseDataModule(LightningDataModule):
         # Create grid using matplotlib subplots
         try:
             import matplotlib.pyplot as plt
-        except ImportError:
-            # Fallback to cv2-based grid if matplotlib not available
-            grid = create_batch_grid(annotated_images)
-            if output_path is not None:
-                output_path = Path(output_path)
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                cv2.imwrite(str(output_path), grid)
-                logger.info(f"Saved visualization to {output_path}")
-            return grid
+        except ImportError as e:
+            raise ImportError("matplotlib is required for visualization. Install it with: pip install matplotlib") from e
 
         # Determine grid layout
         n = len(annotated_images)
@@ -220,7 +218,6 @@ class BaseDataModule(LightningDataModule):
             img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             ax.imshow(img_rgb)
             ax.axis("off")
-            ax.set_title(f"Image {idx}")
 
         # Hide unused subplots
         for idx in range(n, len(axes)):
@@ -498,7 +495,8 @@ def show_dataset(
     """Visualize a batch from the dataset with annotations.
 
     Creates a grid image showing all samples in the specified batch with drawn
-    bounding boxes (oriented or axis-aligned) and class labels. If output path
+    bounding boxes (oriented or axis-aligned) and class labels. Class names are
+    automatically loaded from the dataset YAML file if available. If output path
     is not provided, displays the image in a matplotlib window.
 
     Args:
@@ -510,7 +508,7 @@ def show_dataset(
         img_size: Image size for loading.
         num_workers: Number of dataloader workers.
         num_classes: Number of classes (auto-detected if None).
-        class_names: Optional list of class names for labels.
+        class_names: Optional list of class names for labels. If None, loaded from dataset YAML file.
 
     Examples:
         From command line::
@@ -519,6 +517,8 @@ def show_dataset(
             lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
             lit-yolo show dataset --data /path/to/dataset
     """
+    from lit_yolo.data.utils import read_class_names_from_yaml
+
     # Use OBB datamodule as it supports both oriented and plain bounding boxes
     logger.info(f"Loading dataset from {data}...")
     datamodule = OBBDataModule(
@@ -532,6 +532,12 @@ def show_dataset(
     # Setup datamodule
     datamodule.setup("fit")
     logger.info(f"Detected {datamodule.num_classes} classes")
+
+    # Try to load class names from YAML if not provided
+    if class_names is None:
+        class_names = read_class_names_from_yaml(data)
+        if class_names:
+            logger.info(f"Loaded class names from dataset YAML: {class_names}")
 
     # Visualize batch
     logger.info(f"Visualizing {split} batch {batch_idx}...")
