@@ -275,10 +275,12 @@ dataset = project.version(1).download("yolov11")
 
 # Train with Lightning-YOLOs
 from lit_yolo import train_detect
+
 train_detect(data=f"{dataset.location}/data.yaml", model="yolo11n.pt", epochs=50)
 ```
 
 **Popular datasets on Roboflow:**
+
 - Hard Hat Detection (construction safety, 3 classes, ~7K images)
 - Blood Cell Detection (medical imaging, 3 classes, ~360 images)
 - Playing Cards Detection (53 classes, ~7.6K images)
@@ -318,6 +320,7 @@ lit-yolo train detect --data helmet_data.yaml --model yolo11n.pt --epochs 50
 ```
 
 **Popular datasets on Kaggle:**
+
 - Trash Detection / TACO (environmental monitoring, 60+ classes, ~1.5K images)
 - Safety Helmet Detection (construction safety, 3 classes, ~5K images)
 - Pothole Detection (infrastructure monitoring, 2 classes, ~665 images)
@@ -325,7 +328,7 @@ lit-yolo train detect --data helmet_data.yaml --model yolo11n.pt --epochs 50
 
 Browse more at [Kaggle Datasets](https://www.kaggle.com/datasets)
 
-### Example: Download DOTA v1.5 dataset (OBB)
+### Example: Download DATA v1.5 dataset (OBB)
 
 ```bash
 # Download and extract DATA dataset
