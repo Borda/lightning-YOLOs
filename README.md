@@ -49,7 +49,26 @@ For oriented bounding box detection, labels should contain 4 corner points:
 class x1 y1 x2 y2 x3 y3 x4 y4
 ```
 
-## Example: Download DOTA v1.5 dataset (OBB)
+## Downloading Public Datasets
+
+We provide example notebooks showing how to download and use datasets from popular platforms:
+
+### From Roboflow Universe
+See [notebooks/download-dataset-roboflow.ipynb](notebooks/download-dataset-roboflow.ipynb) for examples including:
+- Hard Hat Detection (construction safety)
+- Blood Cell Detection (medical imaging)
+- Playing Cards Detection
+- And more...
+
+### From Kaggle
+See [notebooks/download-dataset-kaggle.ipynb](notebooks/download-dataset-kaggle.ipynb) for examples including:
+- Trash Detection (environmental monitoring)
+- Safety Helmet Detection
+- Pothole Detection (infrastructure)
+- Face Mask Detection
+- And more...
+
+### Example: Download DOTA v1.5 dataset (OBB)
 
 ```bash
 wget https://www.ultralytics.com/assets/DOTAv1.5.zip
