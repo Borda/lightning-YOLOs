@@ -37,7 +37,7 @@ ______________________________________________________________________
 | ------------------------- | ------------------------------------------------------------------------------------- | ------ |
 | **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                      | ✅     |
 | **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects              | ✅     |
-| 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                         | 🔄     |
+| 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                         | ✅     |
 | **⚡ Mixed Precision**    | Various Precisions and Training strategies with PyTorch Lightning for faster training | ✅     |
 | **🔧 Auto Configuration** | Automatic class detection from dataset                                                | ✅     |
 | **🏗️ Modular Design**     | Clean, extensible architecture with PyTorch Lightning                                 | ✅     |
