@@ -381,6 +381,8 @@ def generate_synthetic_sample(
 
             # Create bounding box (normalized YOLO format: cx, cy, w, h)
             # Add padding to the bounding box to ensure it contains the entire shape
+            # Factor of 1.2 provides 20% padding, enough to contain triangles and circles
+            # which extend beyond their nominal "size" parameter
             bbox_padding_factor = 1.2
             box_w = (obj_size * bbox_padding_factor) / img_size
             box_h = (obj_size * bbox_padding_factor) / img_size
