@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  tester:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -29,9 +29,6 @@ jobs:
           pip install .[dev] --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Run doctests
-        run: |
-          pytest src/
-
+        run: pytest src/
       - name: Run tests
-        run: |
-          pytest tests/ --tb=short
+        run: pytest tests/ --tb=short
