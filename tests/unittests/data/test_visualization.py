@@ -108,7 +108,7 @@ class TestDrawOBBOnImage:
 class TestOBBDataModuleVisualization:
     """Tests for OBBDataModule visualize_batch method."""
 
-    @pytest.mark.parametrize("split,batch_size", [("train", 4), ("val", 2)])
+    @pytest.mark.parametrize(("split", "batch_size"), [("train", 4), ("val", 2)])
     def test_visualize_batch(self, tmp_path, split, batch_size):
         """Test visualizing training and validation batches."""
         root = tmp_path / "synthetic"
@@ -183,7 +183,7 @@ class TestOBBDataModuleVisualization:
 class TestDetDataModuleVisualization:
     """Tests for DetDataModule visualize_batch method."""
 
-    @pytest.mark.parametrize("split,batch_size", [("train", 4), ("val", 2)])
+    @pytest.mark.parametrize(("split", "batch_size"), [("train", 4), ("val", 2)])
     def test_visualize_batch(self, tmp_path, split, batch_size):
         """Test visualizing training and validation batches."""
         root = tmp_path / "synthetic"

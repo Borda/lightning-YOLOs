@@ -65,7 +65,7 @@ line-length = 120
 format.indent-style = "space"
 format.quote-style = "double"
 format.line-ending = "auto"
-lint.select = [ "E", "F", "I", "N", "UP", "W" ]
+lint.select = [ "E", "F", "I", "N", "PT", "RUF100", "UP", "W" ]
 lint.ignore = [ "E501" ]
 
 [tool.pytest.ini_options]

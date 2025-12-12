@@ -4,8 +4,6 @@
 
 **Educational & Experimental YOLO Training Framework with PyTorch Lightning**
 
-> ⚠️ This is an experimental project designed for educational purposes to demonstrate YOLO training with PyTorch Lightning.
-
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)

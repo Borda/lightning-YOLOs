@@ -16,7 +16,7 @@ from lit_yolo.data.utils import calculate_bbox_iou, calculate_boundary_overlap, 
 def reset_random_seed():
     """Reset random seed before each test for deterministic results."""
     np.random.seed(42)
-    yield
+    return
 
 
 class TestOverlapHelperFunctions:
@@ -488,8 +488,8 @@ class TestOBBDataset:
             f.write("0 0.5 0.5 0.3 0.4\n")
 
         # Check that warning is raised
+        dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
         with pytest.warns(UserWarning, match="Standard detection format detected"):
-            dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
             # Load first item to trigger warning
             _, _ = dataset[0]
 
@@ -505,12 +505,10 @@ class TestOBBDataset:
                 f.write(f"{i % 2} 0.5 0.5 0.3 0.4\n")
 
         # Check that warning is raised exactly once
+        dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
         with pytest.warns(UserWarning, match="Standard detection format detected") as warning_list:
-            dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
-
-            # Load all items
-            for i in range(len(dataset)):
-                _, _ = dataset[i]
+            # Load all items - this should trigger the warning only once
+            [dataset[i] for i in range(len(dataset))]
 
         # Warning should be raised exactly once
         assert len(warning_list) == 1
@@ -548,8 +546,8 @@ class TestOBBDataset:
             f.write("1 a b c d e f g h\n")  # Invalid - non-numeric coords
 
         # Check that warnings are raised for invalid formats
-        with pytest.warns(UserWarning):
-            dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+        with pytest.warns(UserWarning, match="Unsupported format"):
             _, labels = dataset[0]
 
         # Should have 2 valid labels (1 standard + 1 OBB)
