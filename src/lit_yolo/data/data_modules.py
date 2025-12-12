@@ -153,6 +153,10 @@ class BaseDataModule(LightningDataModule):
             ...     len(list((dataset_path / "images" / "val").glob("*.jpg")))
             3
         """
+        # Validate class_mode
+        if class_mode not in ("shape", "color"):
+            raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
+        
         root = Path(root)
         np.random.seed(seed)
 
@@ -284,6 +288,10 @@ def create_synthetic_dataset(
         max_size_ratio: Maximum object size as ratio of image size.
         seed: Random seed for reproducibility.
     """
+    # Validate class_mode
+    if class_mode not in ("shape", "color"):
+        raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
+    
     dataset_path = BaseDataModule.create_synthetic_dataset(
         root=output,
         num_samples=num_samples,
