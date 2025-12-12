@@ -117,6 +117,7 @@ class BaseDataModule(LightningDataModule):
         max_objects: int = 5,
         min_size_ratio: float = 0.1,
         max_size_ratio: float = 0.2,
+        overlap_threshold: float = 0.3,
         seed: int = 42,
     ) -> Path:
         """Create a synthetic dataset with basic geometric shapes for testing.
@@ -134,6 +135,8 @@ class BaseDataModule(LightningDataModule):
             max_objects: Maximum number of objects per image.
             min_size_ratio: Minimum object size as ratio of image size (default 0.1 = 10%).
             max_size_ratio: Maximum object size as ratio of image size (default 0.2 = 20%).
+            overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                              Lower values mean less overlap is allowed. Default is 0.3.
             seed: Random seed for reproducibility.
 
         Returns:
@@ -184,6 +187,7 @@ class BaseDataModule(LightningDataModule):
                     class_mode=class_mode,
                     min_size_ratio=min_size_ratio,
                     max_size_ratio=max_size_ratio,
+                    overlap_threshold=overlap_threshold,
                 )
 
                 # Save image
@@ -272,6 +276,7 @@ def create_synthetic_dataset(
     max_objects: int = 5,
     min_size_ratio: float = 0.1,
     max_size_ratio: float = 0.2,
+    overlap_threshold: float = 0.3,
     seed: int = 42,
 ) -> None:
     """CLI wrapper for creating a synthetic dataset with geometric shapes.
@@ -286,6 +291,8 @@ def create_synthetic_dataset(
         max_objects: Maximum number of objects per image.
         min_size_ratio: Minimum object size as ratio of image size.
         max_size_ratio: Maximum object size as ratio of image size.
+        overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                          Lower values mean less overlap is allowed. Default is 0.3.
         seed: Random seed for reproducibility.
     """
     # Validate class_mode
@@ -302,6 +309,7 @@ def create_synthetic_dataset(
         max_objects=max_objects,
         min_size_ratio=min_size_ratio,
         max_size_ratio=max_size_ratio,
+        overlap_threshold=overlap_threshold,
         seed=seed,
     )
 

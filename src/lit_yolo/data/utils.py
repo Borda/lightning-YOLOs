@@ -181,6 +181,111 @@ def xywh_to_xyxy(bbox: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     return torch.stack([x1, y1, x2, y2], dim=1)
 
 
+def calculate_bbox_iou(bbox1: tuple[float, float, float, float], bbox2: tuple[float, float, float, float]) -> float:
+    """Calculate Intersection over Union (IoU) between two bounding boxes.
+
+    Args:
+        bbox1: First bounding box in (cx, cy, w, h) format (normalized).
+        bbox2: Second bounding box in (cx, cy, w, h) format (normalized).
+
+    Returns:
+        IoU value between 0 and 1.
+
+    Examples:
+        >>> # Non-overlapping boxes
+        >>> bbox1 = (0.25, 0.25, 0.2, 0.2)
+        >>> bbox2 = (0.75, 0.75, 0.2, 0.2)
+        >>> iou = calculate_bbox_iou(bbox1, bbox2)
+        >>> iou < 0.01
+        True
+        >>> # Identical boxes
+        >>> bbox1 = (0.5, 0.5, 0.2, 0.2)
+        >>> bbox2 = (0.5, 0.5, 0.2, 0.2)
+        >>> abs(calculate_bbox_iou(bbox1, bbox2) - 1.0) < 0.01
+        True
+    """
+    cx1, cy1, w1, h1 = bbox1
+    cx2, cy2, w2, h2 = bbox2
+
+    # Convert to (x1, y1, x2, y2) format
+    x1_min, y1_min = cx1 - w1 / 2, cy1 - h1 / 2
+    x1_max, y1_max = cx1 + w1 / 2, cy1 + h1 / 2
+    x2_min, y2_min = cx2 - w2 / 2, cy2 - h2 / 2
+    x2_max, y2_max = cx2 + w2 / 2, cy2 + h2 / 2
+
+    # Calculate intersection
+    inter_x_min = max(x1_min, x2_min)
+    inter_y_min = max(y1_min, y2_min)
+    inter_x_max = min(x1_max, x2_max)
+    inter_y_max = min(y1_max, y2_max)
+
+    # Check if there is no intersection
+    if inter_x_max <= inter_x_min or inter_y_max <= inter_y_min:
+        return 0.0
+
+    # Calculate intersection area
+    inter_area = (inter_x_max - inter_x_min) * (inter_y_max - inter_y_min)
+
+    # Calculate union area
+    area1 = w1 * h1
+    area2 = w2 * h2
+    union_area = area1 + area2 - inter_area
+
+    # Calculate IoU
+    return inter_area / union_area if union_area > 0 else 0.0
+
+
+def calculate_boundary_overlap(bbox: tuple[float, float, float, float], img_bounds: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)) -> float:
+    """Calculate how much of a bounding box is outside the image boundaries.
+
+    Args:
+        bbox: Bounding box in (cx, cy, w, h) format (normalized).
+        img_bounds: Image boundaries as (x_min, y_min, x_max, y_max). Default is (0, 0, 1, 1).
+
+    Returns:
+        Ratio of bbox area that is outside the image boundaries (0 = fully inside, 1 = fully outside).
+
+    Examples:
+        >>> # Box fully inside
+        >>> bbox = (0.5, 0.5, 0.2, 0.2)
+        >>> overlap = calculate_boundary_overlap(bbox)
+        >>> overlap < 0.01
+        True
+        >>> # Box partially outside
+        >>> bbox = (0.05, 0.5, 0.2, 0.2)
+        >>> overlap = calculate_boundary_overlap(bbox)
+        >>> overlap > 0.0
+        True
+    """
+    cx, cy, w, h = bbox
+    x_min, y_min, x_max, y_max = img_bounds
+
+    # Convert bbox to (x1, y1, x2, y2) format
+    bbox_x_min = cx - w / 2
+    bbox_y_min = cy - h / 2
+    bbox_x_max = cx + w / 2
+    bbox_y_max = cy + h / 2
+
+    # Calculate the part of the bbox that is inside the image
+    inside_x_min = max(bbox_x_min, x_min)
+    inside_y_min = max(bbox_y_min, y_min)
+    inside_x_max = min(bbox_x_max, x_max)
+    inside_y_max = min(bbox_y_max, y_max)
+
+    # Calculate inside area
+    if inside_x_max > inside_x_min and inside_y_max > inside_y_min:
+        inside_area = (inside_x_max - inside_x_min) * (inside_y_max - inside_y_min)
+    else:
+        inside_area = 0.0
+
+    # Calculate total bbox area
+    total_area = w * h
+
+    # Calculate outside ratio
+    outside_ratio = 1.0 - (inside_area / total_area) if total_area > 0 else 1.0
+    return outside_ratio
+
+
 def draw_synthetic_shape(img: np.ndarray, shape: str, color: tuple, center: tuple, size: int) -> np.ndarray:
     """Draw a geometric shape on an image.
 
@@ -222,6 +327,8 @@ def generate_synthetic_sample(
     class_mode: Literal["shape", "color"],
     min_size_ratio: float,
     max_size_ratio: float,
+    overlap_threshold: float = 0.3,
+    max_placement_attempts: int = 50,
 ) -> tuple[np.ndarray, list[tuple[int, float, float, float, float]]]:
     """Generate a single synthetic image with labeled objects.
 
@@ -232,6 +339,9 @@ def generate_synthetic_sample(
         class_mode: Classification mode ("shape" or "color").
         min_size_ratio: Minimum object size as ratio of image size.
         max_size_ratio: Maximum object size as ratio of image size.
+        overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                          Lower values mean less overlap is allowed. Default is 0.3.
+        max_placement_attempts: Maximum number of attempts to place each object. Default is 50.
 
     Returns:
         Tuple of (image, labels) where labels is a list of (class, cx, cy, w, h) tuples.
@@ -261,34 +371,57 @@ def generate_synthetic_sample(
         min_size = max(1, int(img_size * min_size_ratio))
         max_size = max(min_size + 1, int(img_size * max_size_ratio))
         obj_size = np.random.randint(min_size, max_size)
-        margin = min(obj_size, (img_size // 2) - 1)
-        # Ensure the range is valid for randint; if not, place at center
-        if margin < img_size - margin:
-            cx = np.random.randint(margin, img_size - margin)
-            cy = np.random.randint(margin, img_size - margin)
-        else:
-            cx = img_size // 2
-            cy = img_size // 2
 
-        # Draw shape
+        # Try to place the object without excessive overlap
+        placed = False
+        for attempt in range(max_placement_attempts):
+            # Random position within image bounds
+            cx = np.random.randint(0, img_size)
+            cy = np.random.randint(0, img_size)
+
+            # Create bounding box (normalized YOLO format: cx, cy, w, h)
+            # Add padding to the bounding box to ensure it contains the entire shape
+            bbox_padding_factor = 1.2
+            box_w = (obj_size * bbox_padding_factor) / img_size
+            box_h = (obj_size * bbox_padding_factor) / img_size
+            box_cx = cx / img_size
+            box_cy = cy / img_size
+
+            # Clamp box dimensions to not exceed 1.0
+            box_w = min(box_w, 1.0)
+            box_h = min(box_h, 1.0)
+
+            candidate_bbox = (box_cx, box_cy, box_w, box_h)
+
+            # Check overlap with image boundaries
+            boundary_overlap = calculate_boundary_overlap(candidate_bbox)
+            if boundary_overlap > overlap_threshold:
+                continue
+
+            # Check overlap with existing objects
+            max_overlap = 0.0
+            for existing_label in labels:
+                _, ex_cx, ex_cy, ex_w, ex_h = existing_label
+                existing_bbox = (ex_cx, ex_cy, ex_w, ex_h)
+                iou = calculate_bbox_iou(candidate_bbox, existing_bbox)
+                max_overlap = max(max_overlap, iou)
+
+            # If overlap is acceptable, place the object
+            if max_overlap <= overlap_threshold:
+                placed = True
+                break
+
+        # If we couldn't place the object after max attempts, skip it
+        if not placed:
+            logger.debug(
+                f"Could not place object {i+1}/{num_objects} after {max_placement_attempts} attempts. Skipping."
+            )
+            continue
+
+        # Draw shape at the chosen position
         img = draw_synthetic_shape(img, shape, color, (cx, cy), obj_size)
 
-        # Create bounding box (normalized YOLO format: cx, cy, w, h)
-        # Add padding to the bounding box to ensure it contains the entire shape
-        bbox_padding_factor = 1.2
-        box_w = (obj_size * bbox_padding_factor) / img_size
-        box_h = (obj_size * bbox_padding_factor) / img_size
-        box_cx = cx / img_size
-        box_cy = cy / img_size
-
-        # Ensure box is within image bounds
-        # Clamp width and height to not exceed image boundaries
-        box_w = min(box_w, 1.0)
-        box_h = min(box_h, 1.0)
-        # Clamp center coordinates to keep box within image
-        box_cx = max(box_w / 2, min(1.0 - box_w / 2, box_cx))
-        box_cy = max(box_h / 2, min(1.0 - box_h / 2, box_cy))
-
+        # Add label
         labels.append((cls, box_cx, box_cy, box_w, box_h))
 
     return img, labels
