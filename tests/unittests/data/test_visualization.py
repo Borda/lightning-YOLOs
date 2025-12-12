@@ -2,6 +2,7 @@
 
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -125,7 +126,7 @@ class TestOBBDataModuleVisualization:
         assert fig is not None
         assert axes is not None
         # Clean up
-        import matplotlib.pyplot as plt
+        fig.clf()
         plt.close(fig)
 
     def test_save_visualization(self, tmp_path):
@@ -141,7 +142,7 @@ class TestOBBDataModuleVisualization:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(output_path), bbox_inches="tight")
         
-        import matplotlib.pyplot as plt
+        fig.clf()
         plt.close(fig)
 
         # Check file is created
@@ -166,7 +167,7 @@ class TestOBBDataModuleVisualization:
         assert fig is not None
         assert axes is not None
         # Clean up
-        import matplotlib.pyplot as plt
+        fig.clf()
         plt.close(fig)
 
     def test_invalid_batch_idx(self, tmp_path):
@@ -199,7 +200,7 @@ class TestDetDataModuleVisualization:
         assert fig is not None
         assert axes is not None
         # Clean up
-        import matplotlib.pyplot as plt
+        fig.clf()
         plt.close(fig)
 
     def test_save_visualization(self, tmp_path):
@@ -215,7 +216,7 @@ class TestDetDataModuleVisualization:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(str(output_path), bbox_inches="tight")
         
-        import matplotlib.pyplot as plt
+        fig.clf()
         plt.close(fig)
         
         # Check file is created
@@ -240,5 +241,5 @@ class TestDetDataModuleVisualization:
         assert fig is not None
         assert axes is not None
         # Clean up
-        import matplotlib.pyplot as plt
+        fig.clf()
         plt.close(fig)

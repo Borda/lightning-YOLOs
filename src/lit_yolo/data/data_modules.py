@@ -546,8 +546,14 @@ def show_dataset(
         try:
             plt.show()
         except Exception as e:
-            logger.error(f"Failed to display window: {e}")
-            logger.info("Please specify --output to save to a file instead.")
+            import warnings
+
+            warnings.warn(
+                f"Failed to display matplotlib window: {e}. "
+                "Please specify --output to save to a file instead, or ensure GUI backend is available.",
+                UserWarning,
+                stacklevel=2,
+            )
         finally:
             plt.close(fig)
 
