@@ -148,10 +148,10 @@ class BaseDataModule(LightningDataModule):
             ...     dataset_path = BaseDataModule.create_synthetic_dataset(
             ...         root, num_samples=10, split_ratio=0.7
             ...     )
-            ...     len(list((dataset_path / "images" / "train").glob("*.jpg")))
-            7
-            ...     len(list((dataset_path / "images" / "val").glob("*.jpg")))
-            3
+            ...     nb_train = len(list((dataset_path / "images" / "train").glob("*.jpg")))
+            ...     nb_val = len(list((dataset_path / "images" / "val").glob("*.jpg")))
+            >>> nb_train, nb_val
+            7, 3
         """
         # Validate class_mode
         if class_mode not in ("shape", "color"):
