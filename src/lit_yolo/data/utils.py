@@ -328,7 +328,6 @@ def generate_synthetic_sample(
     min_size_ratio: float,
     max_size_ratio: float,
     overlap_threshold: float = 0.3,
-    max_placement_attempts: int = 50,
 ) -> tuple[np.ndarray, list[tuple[int, float, float, float, float]]]:
     """Generate a single synthetic image with labeled objects.
 
@@ -342,7 +341,7 @@ def generate_synthetic_sample(
         2. Calculate bounding box with 20% padding for shape coverage
         3. Check boundary overlap <= threshold
         4. Check IoU with all existing objects <= threshold
-        5. Accept if constraints met, else retry up to max_placement_attempts
+        5. Accept if constraints met, else retry up to max_objects * 10 attempts
         6. Skip object if placement fails (logs debug message)
 
     Args:
@@ -355,7 +354,6 @@ def generate_synthetic_sample(
         overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
                           Lower values mean less overlap is allowed. Default is 0.3.
                           Recommended values: 0.0 (no overlap), 0.1 (strict), 0.3 (balanced), 0.5 (lenient).
-        max_placement_attempts: Maximum number of attempts to place each object. Default is 50.
 
     Returns:
         Tuple of (image, labels) where labels is a list of (class, cx, cy, w, h) tuples.
@@ -366,6 +364,9 @@ def generate_synthetic_sample(
 
     labels = []
     color_names = list(SYNTHETIC_COLORS.keys())
+
+    # Calculate maximum placement attempts based on max_objects
+    max_placement_attempts = max_objects * 10
 
     # Randomly decide how many objects to generate
     num_objects = np.random.randint(min_objects, max_objects + 1)
