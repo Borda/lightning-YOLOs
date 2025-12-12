@@ -119,12 +119,14 @@ class TestOBBDataModuleVisualization:
         dm = OBBDataModule(data=str(root), img_size=320, batch_size=batch_size, num_classes=3)
         dm.setup("fit")
 
-        grid = dm.visualize_batch(split)
+        fig, axes = dm.visualize_batch(split)
 
-        # Check grid is created
-        assert grid.shape[0] > 0
-        assert grid.shape[1] > 0
-        assert grid.shape[2] == 3
+        # Check figure and axes are created
+        assert fig is not None
+        assert axes is not None
+        # Clean up
+        import matplotlib.pyplot as plt
+        plt.close(fig)
 
     def test_save_visualization(self, tmp_path):
         """Test saving visualization to file."""
@@ -135,16 +137,18 @@ class TestOBBDataModuleVisualization:
         dm = OBBDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
         dm.setup("fit")
 
-        grid = dm.visualize_batch("train")
+        fig, axes = dm.visualize_batch("train")
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(output_path), grid)
+        fig.savefig(str(output_path), bbox_inches="tight")
+        
+        import matplotlib.pyplot as plt
+        plt.close(fig)
 
         # Check file is created
         assert output_path.exists()
         # Check can read the saved image
         saved_img = cv2.imread(str(output_path))
         assert saved_img is not None
-        # grid is now a (fig, axes) tuple, so we cannot compare shapes directly
         assert saved_img.shape[2] == 3  # Check that the saved image has 3 channels
 
     def test_with_class_names(self, tmp_path):
@@ -156,11 +160,14 @@ class TestOBBDataModuleVisualization:
         dm.setup("fit")
 
         class_names = ["square", "triangle", "circle"]
-        dm.class_names = class_names
-        grid = dm.visualize_batch("train")
+        dm._class_names = class_names
+        fig, axes = dm.visualize_batch("train")
 
-        assert grid.shape[0] > 0
-        assert grid.shape[1] > 0
+        assert fig is not None
+        assert axes is not None
+        # Clean up
+        import matplotlib.pyplot as plt
+        plt.close(fig)
 
     def test_invalid_batch_idx(self, tmp_path):
         """Test that invalid batch index raises error."""
@@ -187,11 +194,13 @@ class TestDetDataModuleVisualization:
         dm = DetDataModule(data=str(root), img_size=320, batch_size=batch_size, num_classes=3)
         dm.setup("fit")
 
-        grid = dm.visualize_batch(split)
+        fig, axes = dm.visualize_batch(split)
 
-        assert grid.shape[0] > 0
-        assert grid.shape[1] > 0
-        assert grid.shape[2] == 3
+        assert fig is not None
+        assert axes is not None
+        # Clean up
+        import matplotlib.pyplot as plt
+        plt.close(fig)
 
     def test_save_visualization(self, tmp_path):
         """Test saving visualization to file."""
@@ -202,18 +211,18 @@ class TestDetDataModuleVisualization:
         dm = DetDataModule(data=str(root), img_size=320, batch_size=4, num_classes=3)
         dm.setup("fit")
 
-        grid = dm.visualize_batch("train")
-        # Save the grid image to output_path
+        fig, axes = dm.visualize_batch("train")
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(output_path), grid)
+        fig.savefig(str(output_path), bbox_inches="tight")
+        
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+        
         # Check file is created
         assert output_path.exists()
         # Check can read the saved image
         saved_img = cv2.imread(str(output_path))
         assert saved_img is not None
-        # Since grid may not be a numpy array, check saved_img shape matches expected (img_size, img_size, 3)
-        assert saved_img.shape[0] == 320
-        assert saved_img.shape[1] == 320
         assert saved_img.shape[2] == 3
 
     def test_with_class_names(self, tmp_path):
@@ -225,7 +234,11 @@ class TestDetDataModuleVisualization:
         dm.setup("fit")
 
         class_names = ["red", "green", "blue"]
-        grid = dm.visualize_batch("train")
+        dm._class_names = class_names
+        fig, axes = dm.visualize_batch("train")
 
-        assert grid.shape[0] > 0
-        assert grid.shape[1] > 0
+        assert fig is not None
+        assert axes is not None
+        # Clean up
+        import matplotlib.pyplot as plt
+        plt.close(fig)
