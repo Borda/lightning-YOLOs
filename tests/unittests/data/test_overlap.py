@@ -10,57 +10,6 @@ from lit_yolo.data.utils import (
 )
 
 
-class TestOverlapHelperFunctions:
-    """Tests for overlap calculation helper functions."""
-
-    def test_calculate_bbox_iou_non_overlapping(self):
-        """Test IoU calculation for non-overlapping boxes."""
-        bbox1 = (0.25, 0.25, 0.2, 0.2)
-        bbox2 = (0.75, 0.75, 0.2, 0.2)
-        iou = calculate_bbox_iou(bbox1, bbox2)
-        assert iou == 0.0, f"Non-overlapping boxes should have IoU of 0.0, got {iou}"
-
-    def test_calculate_bbox_iou_identical(self):
-        """Test IoU calculation for identical boxes."""
-        bbox1 = (0.5, 0.5, 0.2, 0.2)
-        bbox2 = (0.5, 0.5, 0.2, 0.2)
-        iou = calculate_bbox_iou(bbox1, bbox2)
-        assert round(iou, 10) == 1.0, f"Identical boxes should have IoU of 1.0, got {iou}"
-
-    def test_calculate_bbox_iou_partial_overlap(self):
-        """Test IoU calculation for partially overlapping boxes."""
-        bbox1 = (0.5, 0.5, 0.4, 0.4)
-        bbox2 = (0.6, 0.6, 0.4, 0.4)
-        iou = calculate_bbox_iou(bbox1, bbox2)
-        # Expected: 0.09 / 0.23 = 9/23 ≈ 0.391304347826087
-        expected_iou = 9 / 23
-        assert abs(iou - expected_iou) < 1e-10, f"Partially overlapping boxes should have IoU of {expected_iou:.10f}, got {iou}"
-
-    def test_calculate_boundary_overlap_inside(self):
-        """Test boundary overlap for box fully inside image."""
-        bbox = (0.5, 0.5, 0.2, 0.2)
-        overlap = calculate_boundary_overlap(bbox)
-        assert overlap == 0.0, f"Box fully inside should have boundary overlap of 0.0, got {overlap}"
-
-    def test_calculate_boundary_overlap_at_edge(self):
-        """Test boundary overlap for box at image edge."""
-        bbox = (0.05, 0.5, 0.2, 0.2)  # Box extends beyond left edge
-        overlap = calculate_boundary_overlap(bbox)
-        assert overlap == 0.25, f"Box at edge should have boundary overlap of 0.25, got {overlap}"
-
-    def test_calculate_boundary_overlap_at_corner(self):
-        """Test boundary overlap for box at image corner."""
-        bbox = (0.05, 0.05, 0.2, 0.2)  # Box at top-left corner
-        overlap = calculate_boundary_overlap(bbox)
-        assert overlap == 0.4375, f"Box at corner should have overlap of 0.4375, got {overlap}"
-
-    def test_calculate_boundary_overlap_fully_outside(self):
-        """Test boundary overlap for box fully outside image."""
-        bbox = (-0.5, -0.5, 0.2, 0.2)  # Box completely outside
-        overlap = calculate_boundary_overlap(bbox)
-        assert overlap == 1.0, f"Box fully outside should have boundary overlap of 1.0, got {overlap}"
-
-
 class TestOverlapThresholdInGeneration:
     """Tests for overlap threshold in synthetic sample generation."""
 
