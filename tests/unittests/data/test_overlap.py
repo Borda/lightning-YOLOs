@@ -51,8 +51,7 @@ class TestOverlapHelperFunctions:
         """Test boundary overlap for box at image corner."""
         bbox = (0.05, 0.05, 0.2, 0.2)  # Box at top-left corner
         overlap = calculate_boundary_overlap(bbox)
-        assert overlap > 0.0, "Box at corner should have non-zero boundary overlap"
-        assert overlap < 1.0, "Box partially inside should have overlap less than 1"
+        assert overlap == 0.4375, f"Box at corner should have overlap of 0.4375, got {overlap}"
 
     def test_calculate_boundary_overlap_fully_outside(self):
         """Test boundary overlap for box fully outside image."""

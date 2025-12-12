@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 
 from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
@@ -181,7 +182,7 @@ class BaseDataModule(LightningDataModule):
         # Generate datasets for both splits
         for split, num_imgs in [("train", num_train), ("val", num_val)]:
             logger.info(f"Generating {num_imgs} {split} images...")
-            for i in range(num_imgs):
+            for i in tqdm(range(num_imgs), desc=f"Generating {split} images", unit="img"):
                 img_path = root / "images" / split / f"img_{i:05d}.jpg"
                 label_path = root / "labels" / split / f"img_{i:05d}.txt"
 
