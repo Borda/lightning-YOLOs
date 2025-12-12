@@ -16,6 +16,44 @@ from pathlib import Path
 from lit_yolo.data import DetDataModule, OBBDataModule
 
 
+def _process_dataset(args):
+    """Process dataset and create visualization."""
+    # Create datamodule
+    print(f"Loading dataset from {args.data}...")
+    if args.obb:
+        print("Using OBB DataModule (oriented bounding boxes)")
+        datamodule = OBBDataModule(
+            data=args.data,
+            img_size=args.img_size,
+            batch_size=args.batch_size,
+        )
+    else:
+        print("Using Det DataModule (axis-aligned bounding boxes)")
+        datamodule = DetDataModule(
+            data=args.data,
+            img_size=args.img_size,
+            batch_size=args.batch_size,
+        )
+
+    # Setup datamodule
+    datamodule.setup("fit")
+    print(f"Detected {datamodule.num_classes} classes")
+
+    # Visualize batch
+    print(f"Visualizing {args.split} batch {args.batch_idx}...")
+    grid = datamodule.visualize_batch(
+        split=args.split,
+        output_path=args.output,
+        batch_idx=args.batch_idx,
+        class_names=args.class_names,
+    )
+
+    print(f"✓ Visualization saved to {args.output}")
+    print(f"  Grid shape: {grid.shape}")
+    print(f"  Batch size: {args.batch_size}")
+    print("\nVisualization complete!")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Visualize datamodule batches")
     parser.add_argument(
@@ -76,67 +114,39 @@ def main():
     # Create synthetic dataset if requested
     if args.synthetic:
         print("Creating synthetic dataset...")
-        tmpdir = tempfile.mkdtemp()
-        data_root = Path(tmpdir) / "synthetic"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_root = Path(tmpdir) / "synthetic"
 
-        if args.obb:
-            dataset_path = OBBDataModule.create_synthetic_dataset(
-                root=data_root,
-                num_samples=50,
-                split_ratio=0.8,
-                img_size=args.img_size,
-                class_mode="shape",
-            )
-        else:
-            dataset_path = DetDataModule.create_synthetic_dataset(
-                root=data_root,
-                num_samples=50,
-                split_ratio=0.8,
-                img_size=args.img_size,
-                class_mode="shape",
-            )
+            if args.obb:
+                dataset_path = OBBDataModule.create_synthetic_dataset(
+                    root=data_root,
+                    num_samples=50,
+                    split_ratio=0.8,
+                    img_size=args.img_size,
+                    class_mode="shape",
+                )
+            else:
+                dataset_path = DetDataModule.create_synthetic_dataset(
+                    root=data_root,
+                    num_samples=50,
+                    split_ratio=0.8,
+                    img_size=args.img_size,
+                    class_mode="shape",
+                )
 
-        args.data = str(dataset_path)
-        args.class_names = ["square", "triangle", "circle"]
-        print(f"Synthetic dataset created at {dataset_path}")
+            args.data = str(dataset_path)
+            args.class_names = ["square", "triangle", "circle"]
+            print(f"Synthetic dataset created at {dataset_path}")
 
-    if not args.data:
+            # Process the dataset before temp directory is cleaned up
+            _process_dataset(args)
+
+    if not args.data and not args.synthetic:
         parser.error("--data is required unless --synthetic is used")
 
-    # Create datamodule
-    print(f"Loading dataset from {args.data}...")
-    if args.obb:
-        print("Using OBB DataModule (oriented bounding boxes)")
-        datamodule = OBBDataModule(
-            data=args.data,
-            img_size=args.img_size,
-            batch_size=args.batch_size,
-        )
-    else:
-        print("Using Det DataModule (axis-aligned bounding boxes)")
-        datamodule = DetDataModule(
-            data=args.data,
-            img_size=args.img_size,
-            batch_size=args.batch_size,
-        )
-
-    # Setup datamodule
-    datamodule.setup("fit")
-    print(f"Detected {datamodule.num_classes} classes")
-
-    # Visualize batch
-    print(f"Visualizing {args.split} batch {args.batch_idx}...")
-    grid = datamodule.visualize_batch(
-        split=args.split,
-        output_path=args.output,
-        batch_idx=args.batch_idx,
-        class_names=args.class_names,
-    )
-
-    print(f"✓ Visualization saved to {args.output}")
-    print(f"  Grid shape: {grid.shape}")
-    print(f"  Batch size: {args.batch_size}")
-    print("\nVisualization complete!")
+    # Process the dataset (either synthetic or provided)
+    if not args.synthetic:
+        _process_dataset(args)
 
 
 if __name__ == "__main__":
