@@ -261,9 +261,14 @@ def generate_synthetic_sample(
         min_size = max(1, int(img_size * min_size_ratio))
         max_size = max(min_size + 1, int(img_size * max_size_ratio))
         obj_size = np.random.randint(min_size, max_size)
-        margin = obj_size
-        cx = np.random.randint(margin, img_size - margin)
-        cy = np.random.randint(margin, img_size - margin)
+        margin = min(obj_size, (img_size // 2) - 1)
+        # Ensure the range is valid for randint; if not, place at center
+        if margin < img_size - margin:
+            cx = np.random.randint(margin, img_size - margin)
+            cy = np.random.randint(margin, img_size - margin)
+        else:
+            cx = img_size // 2
+            cy = img_size // 2
 
         # Draw shape
         img = draw_synthetic_shape(img, shape, color, (cx, cy), obj_size)

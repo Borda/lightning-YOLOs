@@ -128,7 +128,7 @@ lit-yolo create dataset \
     --split_ratio 0.8 \
     --img_size 640 \
     --class_mode shape \
-    --num_objects 3 \
+    --min_objects 3 --max_objects 3 \
     --seed 42
 
 # Create with color-based classification
