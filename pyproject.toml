@@ -36,6 +36,7 @@ dependencies = [
     "torch>=2.0.0",
     "pyyaml>=5.1",
     "tqdm>=4.60.0",
+    "matplotlib>=3.3.0",
 ]
 
 [project.optional-dependencies]

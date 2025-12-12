@@ -222,6 +222,27 @@ The OBB dataset loader supports both formats:
 
 Both formats can coexist in the same project (e.g., different splits can use different formats).
 
+
+## Visualization
+
+Visualize your dataset batches with drawn bounding box annotations:
+
+```bash
+# Visualize dataset and save to file
+lit-yolo show dataset --data /path/to/dataset --output viz.jpg
+
+# Display in matplotlib window (interactive)
+lit-yolo show dataset --data /path/to/dataset
+
+# Visualize validation set with custom batch size
+lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
+
+# Use --help for all options
+lit-yolo show dataset --help
+```
+
+Supports both oriented and axis-aligned bounding boxes automatically.
+
 ## Example: Download DOTA v1.5 dataset (OBB)
 
 ```bash
@@ -230,7 +251,6 @@ rm -rf DOTAv1.5 sample_data
 unzip -qq DOTAv1.5.zip
 python -m py_tree DOTAv1.5 -d 1
 ```
-
 
 ## License
 

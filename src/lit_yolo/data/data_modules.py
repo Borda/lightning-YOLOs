@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import cv2
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
@@ -17,11 +19,53 @@ from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     SYNTHETIC_COLORS,
     SYNTHETIC_SHAPES,
+    annotate_batch_images,
     determine_num_classes,
+    draw_obb_on_image,
     generate_synthetic_sample,
+    read_class_names_from_yaml,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def show_images_in_grid(
+    images: list[np.ndarray],
+) -> tuple[Any, np.ndarray]:
+    """Create a grid visualization of images using matplotlib subplots.
+
+    Args:
+        images: List of images in BGR format (H, W, 3).
+
+    Returns:
+        Tuple of (figure, axes) from matplotlib.
+        Caller is responsible for saving/showing and closing the figure.
+    """
+    # Determine grid layout
+    n = len(images)
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n / cols))
+
+    # Create figure with subplots
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 4))
+    if n == 1:
+        axes = np.array([axes])
+    axes = axes.flatten()
+
+    # Plot each image
+    for idx, (ax, img) in enumerate(zip(axes, images)):
+        # Convert BGR to RGB for matplotlib
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        ax.imshow(img_rgb)
+        ax.axis("off")
+
+    # Hide unused subplots
+    for idx in range(n, len(axes)):
+        axes[idx].axis("off")
+
+    plt.tight_layout()
+
+    return fig, axes
 
 
 class BaseDataModule(LightningDataModule):
@@ -66,6 +110,7 @@ class BaseDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self._num_classes = num_classes
+        self._class_names = None
 
     @property
     def num_classes(self) -> int:
@@ -73,6 +118,13 @@ class BaseDataModule(LightningDataModule):
         if self._num_classes is None:
             self._num_classes = determine_num_classes(self.data_root)
         return self._num_classes
+
+    @property
+    def class_names(self) -> list[str] | None:
+        """Get class names from dataset YAML file if available."""
+        if self._class_names is None:
+            self._class_names = read_class_names_from_yaml(self.data_root)
+        return self._class_names
 
     def setup(self, stage: str | None = None):
         """Setup datasets. Must be implemented by subclasses."""
@@ -106,6 +158,61 @@ class BaseDataModule(LightningDataModule):
     def _collate(self, batch: list[tuple]) -> dict[str, Any]:
         """Collate function for batching. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _collate")
+
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw bounding boxes on image. Must be implemented by subclasses.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of bounding boxes (format depends on subclass).
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn boxes in BGR format.
+        """
+        raise NotImplementedError("Subclasses must implement _draw_boxes_on_image")
+
+    def visualize_batch(
+        self,
+        split: Literal["train", "val"] = "train",
+        batch_idx: int = 0,
+    ) -> tuple[Any, np.ndarray]:
+        """Visualize a batch from the dataset with annotations.
+
+        Creates a grid image showing all samples in the specified batch with drawn bounding boxes
+        and class labels. Class names are automatically loaded from dataset YAML file if available,
+        otherwise class indices are used.
+
+        Args:
+            split: Dataset split to visualize ("train" or "val").
+            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+
+        Returns:
+            Tuple of (fig, axes) matplotlib figure and axes.
+            Caller is responsible for saving/showing and closing the figure with plt.close(fig).
+        """
+        # Ensure dataset is setup
+        if self.train_ds is None or self.val_ds is None:
+            self.setup("fit")
+
+        # Get the appropriate dataloader
+        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
+
+        # Get the specified batch
+        for i, batch in enumerate(dataloader):
+            if i == batch_idx:
+                break
+        else:
+            raise IndexError(f"Batch index {batch_idx} out of range")
+
+        # Annotate images in the batch
+        annotated_images = annotate_batch_images(batch, self._draw_boxes_on_image, self.class_names)
+
+        # Create and return grid visualization
+        return show_images_in_grid(annotated_images)
 
     @staticmethod
     def create_synthetic_dataset(
@@ -166,7 +273,7 @@ class BaseDataModule(LightningDataModule):
         # Validate class_mode
         if class_mode not in ("shape", "color"):
             raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-        
+
         root = Path(root)
         np.random.seed(seed)
 
@@ -242,6 +349,22 @@ class OBBDataModule(BaseDataModule):
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 5),
         }
 
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw oriented bounding boxes on image.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of shape (N, 5) with [cx, cy, w, h, angle] in normalized coordinates.
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn oriented boxes in BGR format.
+        """
+        return draw_obb_on_image(img, bboxes, class_ids, class_names=class_names)
+
 
 class DetDataModule(BaseDataModule):
     """Lightning DataModule for standard detection datasets - handles all data setup."""
@@ -271,6 +394,24 @@ class DetDataModule(BaseDataModule):
             "cls": torch.cat(cls_list) if cls_list else torch.empty(0, 1),
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),  # 4 params: cx, cy, w, h
         }
+
+    def _draw_boxes_on_image(
+        self, img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None = None
+    ) -> np.ndarray:
+        """Draw axis-aligned bounding boxes on image.
+
+        Args:
+            img: Image array in RGB format with values in [0, 255].
+            bboxes: Array of shape (N, 4) with [cx, cy, w, h] in normalized coordinates.
+            class_ids: Array of class indices.
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Image with drawn boxes in BGR format.
+        """
+        from lit_yolo.data.utils import draw_bboxes_on_image
+
+        return draw_bboxes_on_image(img, bboxes, class_ids, class_names=class_names)
 
 
 def create_synthetic_dataset(
@@ -305,7 +446,7 @@ def create_synthetic_dataset(
     # Validate class_mode
     if class_mode not in ("shape", "color"):
         raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-    
+
     dataset_path = BaseDataModule.create_synthetic_dataset(
         root=output,
         num_samples=num_samples,
@@ -321,3 +462,100 @@ def create_synthetic_dataset(
     )
 
     logger.info(f"Synthetic dataset created successfully at: {dataset_path}")
+
+
+def show_dataset(
+    data: str,
+    output: str | None = None,
+    split: Literal["train", "val"] = "train",
+    batch_size: int = 8,
+    batch_idx: int = 0,
+    img_size: int = 640,
+    num_workers: int = 4,
+    num_classes: int | None = None,
+) -> None:
+    """Visualize a batch from the dataset with annotations.
+
+    Creates a grid image showing all samples in the specified batch with drawn
+    bounding boxes (oriented or axis-aligned) and class labels. Class names are
+    automatically loaded from the dataset YAML file if available, otherwise class
+    indices are used. If output path is not provided, displays the image in a matplotlib window.
+
+    Args:
+        data: Path to dataset root directory (with images/ and labels/ subdirs).
+        output: Output path for visualization image. If None, shows in matplotlib window.
+        split: Dataset split to visualize ("train" or "val").
+        batch_size: Number of images in the batch to visualize.
+        batch_idx: Index of batch to visualize (0 for first batch).
+        img_size: Image size for loading.
+        num_workers: Number of dataloader workers.
+        num_classes: Number of classes (auto-detected if None).
+
+    Examples:
+        From command line::
+
+            lit-yolo show dataset --data /path/to/dataset --output viz.jpg
+            lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
+            lit-yolo show dataset --data /path/to/dataset
+    """
+    # Use OBB datamodule as it supports both oriented and plain bounding boxes
+    logger.info(f"Loading dataset from {data}...")
+    datamodule = OBBDataModule(
+        data=data,
+        img_size=img_size,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        num_classes=num_classes,
+    )
+
+    # Setup datamodule
+    datamodule.setup("fit")
+    logger.info(f"Detected {datamodule.num_classes} classes")
+
+    # Log class names if available
+    if datamodule.class_names:
+        logger.info(f"Loaded class names from dataset YAML: {datamodule.class_names}")
+
+    # Visualize batch
+    logger.info(f"Visualizing {split} batch {batch_idx}...")
+    fig, axes = datamodule.visualize_batch(
+        split=split,
+        batch_idx=batch_idx,
+    )
+
+    if output is not None:
+        # Save the figure
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
+        logger.info(f"✓ Visualization saved to {output}")
+        plt.close(fig)
+    else:
+        # Check if we have a GUI backend available
+        backend = matplotlib.get_backend()
+        if backend.lower() in ('agg', 'cairo', 'pdf', 'pgf', 'ps', 'svg', 'template'):
+            logger.warning(
+                f"No GUI backend available (current: {backend}). Cannot display interactive window."
+            )
+            logger.info("Running in headless mode. Please specify --output to save to a file instead.")
+            plt.close(fig)
+            return
+
+        # Display in matplotlib window
+        logger.info("Displaying visualization in matplotlib window...")
+        try:
+            plt.show()
+        except Exception as e:
+            import warnings
+
+            warnings.warn(
+                f"Failed to display matplotlib window: {e}. "
+                "Please specify --output to save to a file instead, or ensure GUI backend is available.",
+                UserWarning,
+                stacklevel=2,
+            )
+        finally:
+            plt.close(fig)
+
+    logger.info(f"  Batch size: {batch_size}")
+    logger.info("Visualization complete!")

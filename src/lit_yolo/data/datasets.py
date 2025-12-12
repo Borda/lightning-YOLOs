@@ -131,11 +131,11 @@ class OBBDataset(BaseDataset):
     @staticmethod
     def _parse_standard_detection_line(parts: list[str], num_classes: int) -> list[float] | None:
         """Parse standard detection format line: class x y w h (no rotation).
-        
+
         Args:
             parts: Line parts split by whitespace.
             num_classes: Number of classes for validation.
-            
+
         Returns:
             List of [cls, x, y, w, h, 0.0] or None if invalid.
         """
@@ -153,11 +153,11 @@ class OBBDataset(BaseDataset):
     @staticmethod
     def _parse_obb_line(parts: list[str], num_classes: int) -> list[float] | None:
         """Parse OBB format line: class + 8 corner coordinates.
-        
+
         Args:
             parts: Line parts split by whitespace.
             num_classes: Number of classes for validation.
-            
+
         Returns:
             List of [cls, cx, cy, w, h, angle] or None if invalid.
         """
