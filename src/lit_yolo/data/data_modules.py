@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 
 from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
@@ -229,12 +230,17 @@ class BaseDataModule(LightningDataModule):
         max_objects: int = 5,
         min_size_ratio: float = 0.1,
         max_size_ratio: float = 0.2,
+        overlap_threshold: float = 0.3,
         seed: int = 42,
     ) -> Path:
         """Create a synthetic dataset with basic geometric shapes for testing.
 
         Generates images containing basic shapes (square, triangle, circle) with different colors
         (red, green, blue). Classes can be defined by shape or color depending on class_mode.
+
+        The overlap_threshold parameter controls object placement to prevent objects from hiding
+        behind each other or extending outside image boundaries. This uses IoU-based overlap
+        detection - lower thresholds create stricter separation but may place fewer objects.
 
         Args:
             root: Root directory where dataset will be created.
@@ -246,6 +252,10 @@ class BaseDataModule(LightningDataModule):
             max_objects: Maximum number of objects per image.
             min_size_ratio: Minimum object size as ratio of image size (default 0.1 = 10%).
             max_size_ratio: Maximum object size as ratio of image size (default 0.2 = 20%).
+            overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                              Lower values mean less overlap is allowed. Default is 0.3 (balanced).
+                              Use 0.0 for no overlap (strictest), 0.1 for minimal overlap,
+                              0.5 for lenient placement allowing denser object packing.
             seed: Random seed for reproducibility.
 
         Returns:
@@ -284,7 +294,7 @@ class BaseDataModule(LightningDataModule):
         # Generate datasets for both splits
         for split, num_imgs in [("train", num_train), ("val", num_val)]:
             logger.info(f"Generating {num_imgs} {split} images...")
-            for i in range(num_imgs):
+            for i in tqdm(range(num_imgs), desc=f"Generating {split} images", unit="img"):
                 img_path = root / "images" / split / f"img_{i:05d}.jpg"
                 label_path = root / "labels" / split / f"img_{i:05d}.txt"
 
@@ -296,6 +306,7 @@ class BaseDataModule(LightningDataModule):
                     class_mode=class_mode,
                     min_size_ratio=min_size_ratio,
                     max_size_ratio=max_size_ratio,
+                    overlap_threshold=overlap_threshold,
                 )
 
                 # Save image
@@ -420,6 +431,7 @@ def create_synthetic_dataset(
     max_objects: int = 5,
     min_size_ratio: float = 0.1,
     max_size_ratio: float = 0.2,
+    overlap_threshold: float = 0.3,
     seed: int = 42,
 ) -> None:
     """CLI wrapper for creating a synthetic dataset with geometric shapes.
@@ -434,6 +446,8 @@ def create_synthetic_dataset(
         max_objects: Maximum number of objects per image.
         min_size_ratio: Minimum object size as ratio of image size.
         max_size_ratio: Maximum object size as ratio of image size.
+        overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
+                          Lower values mean less overlap is allowed. Default is 0.3.
         seed: Random seed for reproducibility.
     """
     # Validate class_mode
@@ -450,6 +464,7 @@ def create_synthetic_dataset(
         max_objects=max_objects,
         min_size_ratio=min_size_ratio,
         max_size_ratio=max_size_ratio,
+        overlap_threshold=overlap_threshold,
         seed=seed,
     )
 

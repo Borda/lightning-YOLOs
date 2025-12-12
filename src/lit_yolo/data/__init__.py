@@ -11,6 +11,8 @@ from lit_yolo.data.data_modules import (
 from lit_yolo.data.datasets import BaseDataset, DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     annotate_batch_images,
+    calculate_bbox_iou,
+    calculate_boundary_overlap,
     corners_to_xywhr,
     determine_num_classes,
     draw_bboxes_on_image,
@@ -29,6 +31,8 @@ __all__ = [
     "DetDataset",
     "OBBDataset",
     "annotate_batch_images",
+    "calculate_bbox_iou",
+    "calculate_boundary_overlap",
     "corners_to_xywhr",
     "determine_num_classes",
     "draw_bboxes_on_image",
