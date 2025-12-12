@@ -16,6 +16,7 @@ from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     SYNTHETIC_COLORS,
     SYNTHETIC_SHAPES,
+    create_batch_grid,
     determine_num_classes,
     generate_synthetic_sample,
 )
@@ -106,6 +107,32 @@ class BaseDataModule(LightningDataModule):
         """Collate function for batching. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _collate")
 
+    def visualize_batch(
+        self,
+        split: str = "train",
+        output_path: str | Path | None = None,
+        batch_idx: int = 0,
+        class_names: list[str] | None = None,
+    ) -> np.ndarray:
+        """Visualize a batch from the dataset with annotations.
+
+        Creates a grid image showing all samples in the first batch with drawn bounding boxes
+        and class labels.
+
+        Args:
+            split: Dataset split to visualize ("train" or "val").
+            output_path: Optional path to save the visualization. If None, only returns the image.
+            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Grid image as numpy array in BGR format.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
+        raise NotImplementedError("Subclasses must implement visualize_batch")
+
     @staticmethod
     def create_synthetic_dataset(
         root: Path | str,
@@ -156,7 +183,7 @@ class BaseDataModule(LightningDataModule):
         # Validate class_mode
         if class_mode not in ("shape", "color"):
             raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-        
+
         root = Path(root)
         np.random.seed(seed)
 
@@ -231,6 +258,100 @@ class OBBDataModule(BaseDataModule):
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 5),
         }
 
+    def visualize_batch(
+        self,
+        split: str = "train",
+        output_path: str | Path | None = None,
+        batch_idx: int = 0,
+        class_names: list[str] | None = None,
+    ) -> np.ndarray:
+        """Visualize a batch from the OBB dataset with oriented bounding boxes.
+
+        Creates a grid image showing all samples in the specified batch with drawn oriented
+        bounding boxes and class labels.
+
+        Args:
+            split: Dataset split to visualize ("train" or "val").
+            output_path: Optional path to save the visualization. If None, only returns the image.
+            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Grid image as numpy array in BGR format.
+
+        Examples:
+            >>> import tempfile
+            >>> from pathlib import Path
+            >>> # Create synthetic dataset
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     root = Path(tmpdir) / "synthetic"
+            ...     _ = OBBDataModule.create_synthetic_dataset(root, num_samples=10)
+            ...     dm = OBBDataModule(data=str(root), img_size=320, batch_size=4)
+            ...     dm.setup("fit")
+            ...     grid = dm.visualize_batch("train")
+            >>> grid.shape[0] > 0 and grid.shape[1] > 0
+            True
+        """
+        from lit_yolo.data.utils import draw_obb_on_image
+
+        # Ensure dataset is setup
+        if self.train_ds is None or self.val_ds is None:
+            self.setup("fit")
+
+        # Get the appropriate dataloader
+        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
+
+        # Get the specified batch
+        for i, batch in enumerate(dataloader):
+            if i == batch_idx:
+                break
+        else:
+            raise ValueError(f"Batch index {batch_idx} out of range")
+
+        # Extract data from batch
+        imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
+        batch_indices = batch["batch_idx"]  # (N,)
+        cls = batch["cls"]  # (N, 1)
+        bboxes = batch["bboxes"]  # (N, 5) - cx, cy, w, h, angle
+
+        # Convert tensors to numpy
+        imgs_np = imgs.cpu().numpy()
+        batch_indices_np = batch_indices.cpu().numpy()
+        cls_np = cls.cpu().numpy().flatten()
+        bboxes_np = bboxes.cpu().numpy()
+
+        # Create annotated images
+        annotated_images = []
+        for b in range(imgs_np.shape[0]):
+            # Get image and convert from CHW to HWC, scale to [0, 255]
+            img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
+
+            # Get boxes for this image
+            mask = batch_indices_np == b
+            img_bboxes = bboxes_np[mask]
+            img_cls = cls_np[mask]
+
+            if len(img_bboxes) > 0:
+                # Draw oriented bounding boxes
+                img = draw_obb_on_image(img, img_bboxes, img_cls, class_names=class_names)
+            else:
+                # Convert RGB to BGR if no boxes to draw
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+            annotated_images.append(img)
+
+        # Create grid
+        grid = create_batch_grid(annotated_images)
+
+        # Save if output path is provided
+        if output_path is not None:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(output_path), grid)
+            logger.info(f"Saved visualization to {output_path}")
+
+        return grid
+
 
 class DetDataModule(BaseDataModule):
     """Lightning DataModule for standard detection datasets - handles all data setup."""
@@ -260,6 +381,100 @@ class DetDataModule(BaseDataModule):
             "cls": torch.cat(cls_list) if cls_list else torch.empty(0, 1),
             "bboxes": torch.cat(bbox_list) if bbox_list else torch.empty(0, 4),  # 4 params: cx, cy, w, h
         }
+
+    def visualize_batch(
+        self,
+        split: str = "train",
+        output_path: str | Path | None = None,
+        batch_idx: int = 0,
+        class_names: list[str] | None = None,
+    ) -> np.ndarray:
+        """Visualize a batch from the detection dataset with axis-aligned bounding boxes.
+
+        Creates a grid image showing all samples in the specified batch with drawn bounding boxes
+        and class labels.
+
+        Args:
+            split: Dataset split to visualize ("train" or "val").
+            output_path: Optional path to save the visualization. If None, only returns the image.
+            batch_idx: Index of the batch to visualize (default: 0 for first batch).
+            class_names: Optional list of class names for labels.
+
+        Returns:
+            Grid image as numpy array in BGR format.
+
+        Examples:
+            >>> import tempfile
+            >>> from pathlib import Path
+            >>> # Create synthetic dataset
+            >>> with tempfile.TemporaryDirectory() as tmpdir:
+            ...     root = Path(tmpdir) / "synthetic"
+            ...     _ = DetDataModule.create_synthetic_dataset(root, num_samples=10)
+            ...     dm = DetDataModule(data=str(root), img_size=320, batch_size=4)
+            ...     dm.setup("fit")
+            ...     grid = dm.visualize_batch("train")
+            >>> grid.shape[0] > 0 and grid.shape[1] > 0
+            True
+        """
+        from lit_yolo.data.utils import draw_bboxes_on_image
+
+        # Ensure dataset is setup
+        if self.train_ds is None or self.val_ds is None:
+            self.setup("fit")
+
+        # Get the appropriate dataloader
+        dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
+
+        # Get the specified batch
+        for i, batch in enumerate(dataloader):
+            if i == batch_idx:
+                break
+        else:
+            raise ValueError(f"Batch index {batch_idx} out of range")
+
+        # Extract data from batch
+        imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
+        batch_indices = batch["batch_idx"]  # (N,)
+        cls = batch["cls"]  # (N, 1)
+        bboxes = batch["bboxes"]  # (N, 4) - cx, cy, w, h
+
+        # Convert tensors to numpy
+        imgs_np = imgs.cpu().numpy()
+        batch_indices_np = batch_indices.cpu().numpy()
+        cls_np = cls.cpu().numpy().flatten()
+        bboxes_np = bboxes.cpu().numpy()
+
+        # Create annotated images
+        annotated_images = []
+        for b in range(imgs_np.shape[0]):
+            # Get image and convert from CHW to HWC, scale to [0, 255]
+            img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
+
+            # Get boxes for this image
+            mask = batch_indices_np == b
+            img_bboxes = bboxes_np[mask]
+            img_cls = cls_np[mask]
+
+            if len(img_bboxes) > 0:
+                # Draw bounding boxes
+                img = draw_bboxes_on_image(img, img_bboxes, img_cls, class_names=class_names)
+            else:
+                # Convert RGB to BGR if no boxes to draw
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+            annotated_images.append(img)
+
+        # Create grid
+        grid = create_batch_grid(annotated_images)
+
+        # Save if output path is provided
+        if output_path is not None:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(output_path), grid)
+            logger.info(f"Saved visualization to {output_path}")
+
+        return grid
 
 
 def create_synthetic_dataset(
@@ -291,7 +506,7 @@ def create_synthetic_dataset(
     # Validate class_mode
     if class_mode not in ("shape", "color"):
         raise ValueError(f"class_mode must be 'shape' or 'color', got '{class_mode}'")
-    
+
     dataset_path = BaseDataModule.create_synthetic_dataset(
         root=output,
         num_samples=num_samples,
