@@ -4,7 +4,19 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-from lit_yolo.data.utils import DEFAULT_COLORS
+# Default class colors for visualization (BGR format for OpenCV)
+DEFAULT_COLORS = [
+    (128, 0, 0),  # Dark Blue
+    (0, 128, 0),  # Dark Green
+    (0, 0, 128),  # Dark Red
+    (128, 128, 0),  # Olive (Dark Green + Dark Blue)
+    (255, 255, 0),  # Cyan (Green + Blue)
+    (255, 0, 255),  # Magenta (Blue + Red)
+    (0, 255, 255),  # Yellow (Green + Red)
+    # (255, 0, 0),  # Blue
+    # (0, 255, 0),  # Green
+    # (0, 0, 255),  # Red
+]
 
 
 def draw_bboxes_on_image(
@@ -67,14 +79,14 @@ def draw_bboxes_on_image(
             label = f"{class_names[int(cls_id)]}: {int(cls_id)}"
 
         # Calculate label size and position
-        (label_w, label_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        (label_w, label_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1, 3)
         label_y1 = max(y1, label_h + 10)
 
         # Draw label background
         cv2.rectangle(img_draw, (x1, label_y1 - label_h - 10), (x1 + label_w, label_y1), color, -1)
 
         # Draw label text
-        cv2.putText(img_draw, label, (x1, label_y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(img_draw, label, (x1, label_y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 3)
 
     return img_draw
 
@@ -159,14 +171,14 @@ def draw_obb_on_image(
         x1, y1 = int(corners[:, 0].min()), int(corners[:, 1].min())
 
         # Calculate label size and position
-        (label_w, label_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        (label_w, label_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)
         label_y1 = max(y1, label_h + 10)
 
         # Draw label background
         cv2.rectangle(img_draw, (x1, label_y1 - label_h - 10), (x1 + label_w, label_y1), color, -1)
 
         # Draw label text
-        cv2.putText(img_draw, label, (x1, label_y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(img_draw, label, (x1, label_y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
     return img_draw
 

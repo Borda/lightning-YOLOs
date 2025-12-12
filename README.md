@@ -253,6 +253,8 @@ lit-yolo create dataset --help
 
 </details>
 
+![Synthetic Data Example](.assets/synth-batch.webp)
+
 ______________________________________________________________________
 
 ## 📚 Documentation

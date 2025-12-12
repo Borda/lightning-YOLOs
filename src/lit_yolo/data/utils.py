@@ -12,20 +12,6 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-# Default class colors for visualization (BGR format for OpenCV)
-DEFAULT_COLORS = [
-    (255, 0, 0),  # Blue
-    (0, 255, 0),  # Green
-    (0, 0, 255),  # Red
-    (255, 255, 0),  # Cyan (Green + Blue)
-    (255, 0, 255),  # Magenta (Blue + Red)
-    (0, 255, 255),  # Yellow (Green + Red)
-    (128, 0, 0),  # Dark Blue
-    (0, 128, 0),  # Dark Green
-    (0, 0, 128),  # Dark Red
-    (128, 128, 0),  # Olive (Dark Green + Dark Blue)
-]
-
 
 def read_class_names_from_yaml(data_path: str | Path) -> list[str] | None:
     """Read class names from dataset YAML file.
