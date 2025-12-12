@@ -16,11 +16,78 @@ from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     SYNTHETIC_COLORS,
     SYNTHETIC_SHAPES,
+    annotate_batch_images,
     determine_num_classes,
     generate_synthetic_sample,
+    read_class_names_from_yaml,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def show_images_in_grid(
+    images: list[np.ndarray],
+    output_path: str | Path | None = None,
+) -> np.ndarray:
+    """Display or save images in a grid using matplotlib subplots.
+
+    Args:
+        images: List of images in BGR format (H, W, 3).
+        output_path: Optional path to save the grid. If None, only returns array.
+
+    Returns:
+        Grid image as numpy array in BGR format.
+
+    Raises:
+        ImportError: If matplotlib is not installed.
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as e:
+        raise ImportError("matplotlib is required for visualization. Install it with: pip install matplotlib") from e
+
+    # Determine grid layout
+    n = len(images)
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n / cols))
+
+    # Create figure with subplots
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 4))
+    if n == 1:
+        axes = np.array([axes])
+    axes = axes.flatten()
+
+    # Plot each image
+    for idx, (ax, img) in enumerate(zip(axes, images)):
+        # Convert BGR to RGB for matplotlib
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        ax.imshow(img_rgb)
+        ax.axis("off")
+
+    # Hide unused subplots
+    for idx in range(n, len(axes)):
+        axes[idx].axis("off")
+
+    plt.tight_layout()
+
+    # Save if output path provided
+    if output_path is not None:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(str(output_path), dpi=150, bbox_inches="tight")
+        logger.info(f"Saved visualization to {output_path}")
+
+    # Convert figure to numpy array for return value
+    fig.canvas.draw()
+    grid = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+    grid = grid.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    # Convert RGB to BGR for consistency
+    grid = cv2.cvtColor(grid, cv2.COLOR_RGB2BGR)
+
+    # Close figure to free memory
+    plt.close(fig)
+
+    return grid
 
 
 class BaseDataModule(LightningDataModule):
@@ -65,6 +132,7 @@ class BaseDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self._num_classes = num_classes
+        self._class_names = None
 
     @property
     def num_classes(self) -> int:
@@ -72,6 +140,13 @@ class BaseDataModule(LightningDataModule):
         if self._num_classes is None:
             self._num_classes = determine_num_classes(self.data_root)
         return self._num_classes
+
+    @property
+    def class_names(self) -> list[str] | None:
+        """Get class names from dataset YAML file if available."""
+        if self._class_names is None:
+            self._class_names = read_class_names_from_yaml(self.data_root)
+        return self._class_names
 
     def setup(self, stage: str | None = None):
         """Setup datasets. Must be implemented by subclasses."""
@@ -127,31 +202,24 @@ class BaseDataModule(LightningDataModule):
         split: Literal["train", "val"] = "train",
         output_path: str | Path | None = None,
         batch_idx: int = 0,
-        class_names: list[str] | None = None,
     ) -> np.ndarray:
         """Visualize a batch from the dataset with annotations.
 
         Creates a grid image showing all samples in the specified batch with drawn bounding boxes
-        and class labels. Class names are automatically loaded from dataset YAML file if available.
+        and class labels. Class names are automatically loaded from dataset YAML file if available,
+        otherwise class indices are used.
 
         Args:
             split: Dataset split to visualize ("train" or "val").
             output_path: Optional path to save the visualization. If None, only returns the image.
             batch_idx: Index of the batch to visualize (default: 0 for first batch).
-            class_names: Optional list of class names for labels. If None, will try to load from dataset YAML.
 
         Returns:
             Grid image as numpy array in BGR format.
         """
-        from lit_yolo.data.utils import read_class_names_from_yaml
-
         # Ensure dataset is setup
         if self.train_ds is None or self.val_ds is None:
             self.setup("fit")
-
-        # Try to load class names from YAML if not provided
-        if class_names is None:
-            class_names = read_class_names_from_yaml(self.data_root)
 
         # Get the appropriate dataloader
         dataloader = self.train_dataloader() if split == "train" else self.val_dataloader()
@@ -163,85 +231,11 @@ class BaseDataModule(LightningDataModule):
         else:
             raise ValueError(f"Batch index {batch_idx} out of range")
 
-        # Extract data from batch
-        imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
-        batch_indices = batch["batch_idx"]  # (N,)
-        cls = batch["cls"]  # (N, 1)
-        bboxes = batch["bboxes"]  # (N, 4 or 5) depending on subclass
+        # Annotate images in the batch
+        annotated_images = annotate_batch_images(batch, self._draw_boxes_on_image, self.class_names)
 
-        # Convert tensors to numpy
-        imgs_np = imgs.cpu().numpy()
-        batch_indices_np = batch_indices.cpu().numpy()
-        cls_np = cls.cpu().numpy().flatten()
-        bboxes_np = bboxes.cpu().numpy()
-
-        # Create annotated images
-        annotated_images = []
-        for b in range(imgs_np.shape[0]):
-            # Get image and convert from CHW to HWC, scale to [0, 255]
-            img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
-
-            # Get boxes for this image
-            mask = batch_indices_np == b
-            img_bboxes = bboxes_np[mask]
-            img_cls = cls_np[mask]
-
-            if len(img_bboxes) > 0:
-                # Draw bounding boxes using subclass-specific method
-                img = self._draw_boxes_on_image(img, img_bboxes, img_cls, class_names=class_names)
-            else:
-                # Convert RGB to BGR if no boxes to draw
-                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-
-            annotated_images.append(img)
-
-        # Create grid using matplotlib subplots
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError as e:
-            raise ImportError("matplotlib is required for visualization. Install it with: pip install matplotlib") from e
-
-        # Determine grid layout
-        n = len(annotated_images)
-        cols = int(np.ceil(np.sqrt(n)))
-        rows = int(np.ceil(n / cols))
-
-        # Create figure with subplots
-        fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 4))
-        if n == 1:
-            axes = np.array([axes])
-        axes = axes.flatten()
-
-        # Plot each image
-        for idx, (ax, img) in enumerate(zip(axes, annotated_images)):
-            # Convert BGR to RGB for matplotlib
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            ax.imshow(img_rgb)
-            ax.axis("off")
-
-        # Hide unused subplots
-        for idx in range(n, len(axes)):
-            axes[idx].axis("off")
-
-        plt.tight_layout()
-
-        # Save or convert to array
-        if output_path is not None:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            plt.savefig(str(output_path), dpi=150, bbox_inches="tight")
-            logger.info(f"Saved visualization to {output_path}")
-
-        # Convert figure to numpy array for return value
-        fig.canvas.draw()
-        grid = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        grid = grid.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-        # Convert RGB to BGR for consistency
-        grid = cv2.cvtColor(grid, cv2.COLOR_RGB2BGR)
-
-        plt.close(fig)
-
-        return grid
+        # Create and return grid visualization
+        return show_images_in_grid(annotated_images, output_path)
 
     @staticmethod
     def create_synthetic_dataset(
@@ -490,14 +484,13 @@ def show_dataset(
     img_size: int = 640,
     num_workers: int = 4,
     num_classes: int | None = None,
-    class_names: list[str] | None = None,
 ) -> None:
     """Visualize a batch from the dataset with annotations.
 
     Creates a grid image showing all samples in the specified batch with drawn
     bounding boxes (oriented or axis-aligned) and class labels. Class names are
-    automatically loaded from the dataset YAML file if available. If output path
-    is not provided, displays the image in a matplotlib window.
+    automatically loaded from the dataset YAML file if available, otherwise class
+    indices are used. If output path is not provided, displays the image in a matplotlib window.
 
     Args:
         data: Path to dataset root directory (with images/ and labels/ subdirs).
@@ -508,7 +501,6 @@ def show_dataset(
         img_size: Image size for loading.
         num_workers: Number of dataloader workers.
         num_classes: Number of classes (auto-detected if None).
-        class_names: Optional list of class names for labels. If None, loaded from dataset YAML file.
 
     Examples:
         From command line::
@@ -517,8 +509,6 @@ def show_dataset(
             lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
             lit-yolo show dataset --data /path/to/dataset
     """
-    from lit_yolo.data.utils import read_class_names_from_yaml
-
     # Use OBB datamodule as it supports both oriented and plain bounding boxes
     logger.info(f"Loading dataset from {data}...")
     datamodule = OBBDataModule(
@@ -533,11 +523,9 @@ def show_dataset(
     datamodule.setup("fit")
     logger.info(f"Detected {datamodule.num_classes} classes")
 
-    # Try to load class names from YAML if not provided
-    if class_names is None:
-        class_names = read_class_names_from_yaml(data)
-        if class_names:
-            logger.info(f"Loaded class names from dataset YAML: {class_names}")
+    # Log class names if available
+    if datamodule.class_names:
+        logger.info(f"Loaded class names from dataset YAML: {datamodule.class_names}")
 
     # Visualize batch
     logger.info(f"Visualizing {split} batch {batch_idx}...")
@@ -545,7 +533,6 @@ def show_dataset(
         split=split,
         output_path=output,
         batch_idx=batch_idx,
-        class_names=class_names,
     )
 
     if output is not None:

@@ -217,8 +217,6 @@ lit-yolo show dataset --data /path/to/dataset
 lit-yolo show dataset --data /path/to/dataset --split val --batch_size 4
 
 # Class names are automatically loaded from dataset YAML file (data.yaml/dataset.yaml)
-# Or manually override with --class_names
-lit-yolo show dataset --data /path/to/dataset --class_names cat dog bird
 
 # Use --help for all options
 lit-yolo show dataset --help
@@ -235,13 +233,6 @@ dm.setup("fit")
 
 # Visualize training batch (class names loaded from dataset YAML automatically)
 grid = dm.visualize_batch(split="train", output_path="train_viz.jpg")
-
-# Or manually override class names
-grid = dm.visualize_batch(
-    split="train",
-    output_path="train_viz.jpg",
-    class_names=["cat", "dog", "bird"]
-)
 
 # Or display in window (set output_path=None)
 grid = dm.visualize_batch(split="train", output_path=None)

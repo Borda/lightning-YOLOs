@@ -60,21 +60,26 @@ def read_class_names_from_yaml(data_path: str | Path) -> list[str] | None:
     # Try common YAML file names
     for yaml_name in ["data.yaml", "dataset.yaml", "data.yml", "dataset.yml"]:
         yaml_file = data_path / yaml_name
-        if yaml_file.exists():
-            try:
-                with open(yaml_file) as f:
-                    data = yaml.safe_load(f)
-                    if data and "names" in data:
-                        names = data["names"]
-                        # Handle both list and dict formats
-                        if isinstance(names, dict):
-                            # Convert dict to list sorted by key
-                            names = [names[i] for i in sorted(names.keys())]
-                        logger.debug(f"Loaded {len(names)} class names from {yaml_file}")
-                        return names
-            except Exception as e:
-                logger.debug(f"Failed to read class names from {yaml_file}: {e}")
-                continue
+        if not yaml_file.exists():
+            continue
+
+        try:
+            with open(yaml_file) as f:
+                data = yaml.safe_load(f)
+        except Exception as e:
+            logger.debug(f"Failed to read class names from {yaml_file}: {e}")
+            continue
+
+        if not data or "names" not in data:
+            continue
+
+        names = data["names"]
+        # Handle both list and dict formats
+        if isinstance(names, dict):
+            # Convert dict to list sorted by key
+            names = [names[i] for i in sorted(names.keys())]
+        logger.debug(f"Loaded {len(names)} class names from {yaml_file}")
+        return names
 
     logger.debug(f"No class names found in YAML files at {data_path}")
     return None
@@ -521,3 +526,55 @@ def draw_obb_on_image(
     return img_draw
 
 
+
+
+def annotate_batch_images(
+    batch: dict,
+    draw_fn: callable,
+    class_names: list[str] | None = None,
+) -> list[np.ndarray]:
+    """Annotate images in a batch with bounding boxes.
+
+    Args:
+        batch: Batch dictionary containing images, bboxes, class ids, and batch indices.
+               Expected keys: "img" (B, 3, H, W), "batch_idx" (N,), "cls" (N, 1), "bboxes" (N, 4/5).
+        draw_fn: Function to draw boxes on image. Should have signature:
+                 (img: np.ndarray, bboxes: np.ndarray, class_ids: np.ndarray, class_names: list[str] | None) -> np.ndarray
+        class_names: Optional list of class names for labels.
+
+    Returns:
+        List of annotated images in BGR format.
+    """
+    # Extract data from batch
+    imgs = batch["img"]  # (B, 3, H, W) in [0, 1]
+    batch_indices = batch["batch_idx"]  # (N,)
+    cls = batch["cls"]  # (N, 1)
+    bboxes = batch["bboxes"]  # (N, 4 or 5) depending on format
+
+    # Convert tensors to numpy
+    imgs_np = imgs.cpu().numpy()
+    batch_indices_np = batch_indices.cpu().numpy()
+    cls_np = cls.cpu().numpy().flatten()
+    bboxes_np = bboxes.cpu().numpy()
+
+    # Create annotated images
+    annotated_images = []
+    for b in range(imgs_np.shape[0]):
+        # Get image and convert from CHW to HWC, scale to [0, 255]
+        img = (imgs_np[b].transpose(1, 2, 0) * 255).astype(np.uint8)
+
+        # Get boxes for this image
+        mask = batch_indices_np == b
+        img_bboxes = bboxes_np[mask]
+        img_cls = cls_np[mask]
+
+        if len(img_bboxes) > 0:
+            # Draw bounding boxes using provided drawing function
+            img = draw_fn(img, img_bboxes, img_cls, class_names=class_names)
+        else:
+            # Convert RGB to BGR if no boxes to draw
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        annotated_images.append(img)
+
+    return annotated_images
