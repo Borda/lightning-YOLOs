@@ -283,7 +283,7 @@ def calculate_boundary_overlap(bbox: tuple[float, float, float, float], img_boun
     # Calculate outside ratio
     # Edge case: zero-area box (point) is considered to have no boundary overlap
     outside_ratio = 1.0 - (inside_area / total_area) if total_area > 0 else 0.0
-    return outside_ratio
+    return round(outside_ratio, ndigits=9)
 
 
 def draw_synthetic_shape(img: np.ndarray, shape: str, color: tuple, center: tuple, size: int) -> np.ndarray:
