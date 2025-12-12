@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import torch
 
-from lit_yolo.data import YOLOOBBDataset, corners_to_xywhr, obb_to_xyxy, xywh_to_xyxy
+from lit_yolo.data import OBBDataset, corners_to_xywhr, obb_to_xyxy, xywh_to_xyxy
 
 
 class TestCornersToXywhr:
@@ -276,13 +276,13 @@ class TestXywhToXyxy:
         assert abs(result[0, 3].item() - 400) < 1
 
 
-class TestYOLOOBBDataset:
-    """Tests for YOLOOBBDataset class."""
+class TestOBBDataset:
+    """Tests for OBBDataset class."""
 
     def test_load_standard_detection_format(self, bounding_box_dataset):
         """Test loading standard detection format (5 values: class x y w h)."""
         # Load dataset
-        dataset = YOLOOBBDataset(bounding_box_dataset, "train", img_size=640, num_classes=2)
+        dataset = OBBDataset(bounding_box_dataset, "train", img_size=640, num_classes=2)
 
         # Get first item
         img_tensor, labels = dataset[0]
@@ -305,7 +305,7 @@ class TestYOLOOBBDataset:
     def test_load_obb_format(self, oriented_bounding_box_dataset):
         """Test loading OBB format (9 values: class + 8 corner coordinates)."""
         # Load dataset
-        dataset = YOLOOBBDataset(oriented_bounding_box_dataset, "train", img_size=640, num_classes=2)
+        dataset = OBBDataset(oriented_bounding_box_dataset, "train", img_size=640, num_classes=2)
 
         # Get first item
         img_tensor, labels = dataset[0]
@@ -332,7 +332,7 @@ class TestYOLOOBBDataset:
 
         # Check that warning is raised
         with pytest.warns(UserWarning, match="Standard detection format detected"):
-            dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+            dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
             # Load first item to trigger warning
             _, _ = dataset[0]
 
@@ -349,7 +349,7 @@ class TestYOLOOBBDataset:
 
         # Check that warning is raised exactly once
         with pytest.warns(UserWarning, match="Standard detection format detected") as warning_list:
-            dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+            dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
 
             # Load all items
             for i in range(len(dataset)):
@@ -361,7 +361,7 @@ class TestYOLOOBBDataset:
     def test_mixed_format_handling(self, mixed_detection_dataset):
         """Test that dataset can handle files without both formats mixed in same label file."""
         # Load dataset
-        dataset = YOLOOBBDataset(mixed_detection_dataset, "train", img_size=640, num_classes=2)
+        dataset = OBBDataset(mixed_detection_dataset, "train", img_size=640, num_classes=2)
 
         # Both images should load successfully
         assert len(dataset) == 2
@@ -391,7 +391,7 @@ class TestYOLOOBBDataset:
 
         # Check that warnings are raised for invalid formats
         with pytest.warns(UserWarning):
-            dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+            dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
             _, labels = dataset[0]
 
         # Should have 2 valid labels (1 standard + 1 OBB)
@@ -408,7 +408,7 @@ class TestYOLOOBBDataset:
         label_path.touch()
 
         # Load dataset
-        dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
 
         # Get item - should return empty labels
         _, labels = dataset[0]
@@ -423,7 +423,7 @@ class TestYOLOOBBDataset:
         create_test_image(img_path)
 
         # Load dataset
-        dataset = YOLOOBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
+        dataset = OBBDataset(yolo_dataset_dir, "train", img_size=640, num_classes=2)
 
         # Get item - should return empty labels
         _, labels = dataset[0]

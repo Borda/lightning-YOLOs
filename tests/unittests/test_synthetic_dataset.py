@@ -5,12 +5,12 @@ from pathlib import Path
 import cv2
 import pytest
 
-from lit_yolo.data import BaseYOLODataModule, DetDataModule, OBBDataModule
+from lit_yolo.data import BaseDataModule, DetDataModule, OBBDataModule
 
 
 def test_basic_creation(tmp_path):
     """Test basic synthetic dataset creation."""
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         tmp_path, num_samples=7, split_ratio=0.7, img_size=640, class_mode="shape"
     )
 
@@ -39,7 +39,7 @@ def test_basic_creation(tmp_path):
 @pytest.mark.parametrize("class_mode", ["shape", "color"])
 def test_class_modes(tmp_path, class_mode):
     """Test synthetic dataset with different classification modes."""
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         tmp_path, num_samples=15, split_ratio=0.67, class_mode=class_mode
     )
 
@@ -63,13 +63,13 @@ def test_class_modes(tmp_path, class_mode):
 def test_invalid_class_mode(tmp_path):
     """Test that invalid class_mode raises ValueError."""
     with pytest.raises(ValueError, match="class_mode"):
-        BaseYOLODataModule.create_synthetic_dataset(tmp_path, class_mode="invalid")
+        BaseDataModule.create_synthetic_dataset(tmp_path, class_mode="invalid")
 
 
 def test_label_format_validity(tmp_path):
     """Test that generated labels are in valid YOLO format."""
     # Use fixed min/max to have predictable object counts
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         tmp_path, num_samples=7, split_ratio=0.7, min_objects=3, max_objects=3
     )
 
@@ -105,7 +105,7 @@ def test_label_format_validity(tmp_path):
 def test_image_properties(tmp_path):
     """Test that generated images have correct properties."""
     img_size = 512
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         tmp_path, num_samples=4, split_ratio=0.75, img_size=img_size
     )
 
@@ -124,7 +124,7 @@ def test_image_properties(tmp_path):
 
 def test_image_label_correspondence(tmp_path):
     """Test that each image has a corresponding label file."""
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
+    dataset_path = BaseDataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
     for split in ["train", "val"]:
         img_dir = dataset_path / "images" / split
@@ -148,8 +148,8 @@ def test_reproducibility_with_seed(tmp_path):
     root2 = tmp_path / "dataset2"
 
     # Create two datasets with same seed
-    BaseYOLODataModule.create_synthetic_dataset(root1, num_samples=7, split_ratio=0.7, seed=123)
-    BaseYOLODataModule.create_synthetic_dataset(root2, num_samples=7, split_ratio=0.7, seed=123)
+    BaseDataModule.create_synthetic_dataset(root1, num_samples=7, split_ratio=0.7, seed=123)
+    BaseDataModule.create_synthetic_dataset(root2, num_samples=7, split_ratio=0.7, seed=123)
 
     # Compare labels (should be identical)
     label_files1 = sorted((root1 / "labels" / "train").glob("*.txt"))
@@ -166,7 +166,7 @@ def test_reproducibility_with_seed(tmp_path):
 def test_custom_image_size(tmp_path):
     """Test synthetic dataset creation with custom image size."""
     custom_size = 320
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         tmp_path, num_samples=4, split_ratio=0.75, img_size=custom_size
     )
 
@@ -180,7 +180,7 @@ def test_custom_image_size(tmp_path):
 
 def test_can_load_with_det_datamodule(tmp_path):
     """Test that synthetic dataset can be loaded with DetDataModule."""
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
+    dataset_path = BaseDataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
     # Create DetDataModule and load dataset
     datamodule = DetDataModule(data=str(dataset_path), img_size=640, batch_size=2, num_classes=3)
@@ -207,7 +207,7 @@ def test_can_load_with_det_datamodule(tmp_path):
 
 def test_can_load_with_obb_datamodule(tmp_path):
     """Test that synthetic dataset can be loaded with OBBDataModule (standard format)."""
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
+    dataset_path = BaseDataModule.create_synthetic_dataset(tmp_path, num_samples=15, split_ratio=0.67)
 
     # Create OBBDataModule and load dataset
     # OBB module should also handle standard detection format
@@ -235,7 +235,7 @@ def test_can_load_with_obb_datamodule(tmp_path):
 def test_string_path_input(tmp_path):
     """Test that method accepts string path as input."""
     root_str = str(tmp_path)
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(root_str, num_samples=4, split_ratio=0.75)
+    dataset_path = BaseDataModule.create_synthetic_dataset(root_str, num_samples=4, split_ratio=0.75)
 
     # Should return Path object
     assert isinstance(dataset_path, Path)
@@ -246,7 +246,7 @@ def test_custom_num_objects(tmp_path):
     """Test configurable range of objects per image."""
     min_objects = 3
     max_objects = 7
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         tmp_path, num_samples=20, split_ratio=0.7, min_objects=min_objects, max_objects=max_objects
     )
 

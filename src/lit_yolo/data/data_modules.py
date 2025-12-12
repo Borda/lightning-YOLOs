@@ -12,7 +12,7 @@ import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
-from lit_yolo.data.datasets import YOLODetDataset, YOLOOBBDataset
+from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     SYNTHETIC_COLORS,
     SYNTHETIC_SHAPES,
@@ -23,7 +23,7 @@ from lit_yolo.data.utils import (
 logger = logging.getLogger(__name__)
 
 
-class BaseYOLODataModule(LightningDataModule):
+class BaseDataModule(LightningDataModule):
     """
     Base Lightning DataModule for YOLO datasets.
 
@@ -145,7 +145,7 @@ class BaseYOLODataModule(LightningDataModule):
             >>> # Create synthetic dataset
             >>> with tempfile.TemporaryDirectory() as tmpdir:
             ...     root = Path(tmpdir) / "synthetic"
-            ...     dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+            ...     dataset_path = BaseDataModule.create_synthetic_dataset(
             ...         root, num_samples=10, split_ratio=0.7
             ...     )
             ...     len(list((dataset_path / "images" / "train").glob("*.jpg")))
@@ -198,14 +198,14 @@ class BaseYOLODataModule(LightningDataModule):
         return root
 
 
-class OBBDataModule(BaseYOLODataModule):
+class OBBDataModule(BaseDataModule):
     """Lightning DataModule for OBB datasets - handles all data setup."""
 
     def setup(self, stage: str | None = None):
         """Setup OBB datasets for training and validation."""
         nc = self.num_classes  # Triggers detection if needed
-        self.train_ds = YOLOOBBDataset(self.data_root, "train", self.img_size, nc)
-        self.val_ds = YOLOOBBDataset(self.data_root, "val", self.img_size, nc)
+        self.train_ds = OBBDataset(self.data_root, "train", self.img_size, nc)
+        self.val_ds = OBBDataset(self.data_root, "val", self.img_size, nc)
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
@@ -228,14 +228,14 @@ class OBBDataModule(BaseYOLODataModule):
         }
 
 
-class DetDataModule(BaseYOLODataModule):
+class DetDataModule(BaseDataModule):
     """Lightning DataModule for standard detection datasets - handles all data setup."""
 
     def setup(self, stage: str | None = None):
         """Setup standard detection datasets for training and validation."""
         nc = self.num_classes  # Triggers detection if needed
-        self.train_ds = YOLODetDataset(self.data_root, "train", self.img_size, nc)
-        self.val_ds = YOLODetDataset(self.data_root, "val", self.img_size, nc)
+        self.train_ds = DetDataset(self.data_root, "train", self.img_size, nc)
+        self.val_ds = DetDataset(self.data_root, "val", self.img_size, nc)
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
@@ -284,7 +284,7 @@ def create_synthetic_dataset(
         max_size_ratio: Maximum object size as ratio of image size.
         seed: Random seed for reproducibility.
     """
-    dataset_path = BaseYOLODataModule.create_synthetic_dataset(
+    dataset_path = BaseDataModule.create_synthetic_dataset(
         root=output,
         num_samples=num_samples,
         split_ratio=split_ratio,

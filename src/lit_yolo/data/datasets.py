@@ -16,7 +16,7 @@ from lit_yolo.data.utils import corners_to_xywhr
 logger = logging.getLogger(__name__)
 
 
-class BaseYOLODataset(Dataset):
+class BaseDataset(Dataset):
     """
     Abstract base class for YOLO-style datasets, providing common functionality for image loading,
     preprocessing, and letterbox resizing.
@@ -32,7 +32,7 @@ class BaseYOLODataset(Dataset):
             Loads and returns the label(s) for the image at the given index, in the expected format.
 
     Example:
-        class MyYOLODataset(BaseYOLODataset):
+        class MyYOLODataset(BaseDataset):
             def _load_labels(self, idx: int) -> torch.Tensor:
                 # Custom label loading logic here
                 ...
@@ -125,7 +125,7 @@ class BaseYOLODataset(Dataset):
         return img_padded, scale, (pad_w, pad_h)
 
 
-class YOLOOBBDataset(BaseYOLODataset):
+class OBBDataset(BaseDataset):
     """Dataset for YOLO OBB format (4-corner annotations)."""
 
     @staticmethod
@@ -218,7 +218,7 @@ class YOLOOBBDataset(BaseYOLODataset):
         return torch.tensor(labels, dtype=torch.float32) if labels else torch.zeros((0, 6), dtype=torch.float32)
 
 
-class YOLODetDataset(BaseYOLODataset):
+class DetDataset(BaseDataset):
     """Dataset for standard YOLO detection format (axis-aligned bounding boxes)."""
 
     def _load_labels(self, path: Path) -> torch.Tensor:
