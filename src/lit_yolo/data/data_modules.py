@@ -17,12 +17,11 @@ from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
     SYNTHETIC_COLORS,
     SYNTHETIC_SHAPES,
-    annotate_batch_images,
     determine_num_classes,
-    draw_obb_on_image,
     generate_synthetic_sample,
     read_class_names_from_yaml,
 )
+from lit_yolo.data.visual import annotate_batch_images, draw_obb_on_image
 
 logger = logging.getLogger(__name__)
 
@@ -414,7 +413,7 @@ class DetDataModule(BaseDataModule):
         Returns:
             Image with drawn boxes in BGR format.
         """
-        from lit_yolo.data.utils import draw_bboxes_on_image
+        from lit_yolo.data import draw_bboxes_on_image
 
         return draw_bboxes_on_image(img, bboxes, class_ids, class_names=class_names)
 

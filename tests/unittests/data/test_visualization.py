@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from lit_yolo.data import DetDataModule, OBBDataModule
-from lit_yolo.data.utils import draw_bboxes_on_image, draw_obb_on_image
+from lit_yolo.data import DetDataModule, OBBDataModule, draw_bboxes_on_image, draw_obb_on_image
 
 
 class TestDrawBboxesOnImage:

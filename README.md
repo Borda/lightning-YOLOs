@@ -165,10 +165,14 @@ This is useful for:
 src/lit_yolo/
 ├── __init__.py      # Package initialization and exports
 ├── __main__.py      # CLI entry point
-├── data.py          # Dataset, DataModule, and data utilities
-│                      - YOLODetDataset, DetDataModule (standard detection)
-│                      - YOLOOBBDataset, OBBDataModule (OBB detection)
+├── data/            # Data sub-package
+│   ├── __init__.py       # Exports for data components
+│   ├── datasets.py       # Dataset classes (DetDataset, OBBDataset)
+│   ├── data_modules.py   # DataModule classes (DetDataModule, OBBDataModule)
+│   ├── utils.py          # Data utilities and helper functions
+│   └── visual.py         # Data visualization functions
 ├── models.py        # Lightning modules
+│                      - BaseLitYOLO (base class)
 │                      - LitYOLODet (standard detection)
 │                      - LitYOLOOBB (OBB detection)
 └── training.py      # Training functions
