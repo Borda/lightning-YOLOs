@@ -10,11 +10,6 @@ from lit_yolo.data.utils import (
 )
 
 
-@pytest.fixture(autouse=True)
-def reset_random_seed():
-    """Reset random seed before each test for deterministic results."""
-    np.random.seed(42)
-    yield
 class TestOverlapHelperFunctions:
     """Tests for overlap calculation helper functions."""
 

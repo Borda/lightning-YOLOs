@@ -3,11 +3,19 @@
 from pathlib import Path
 
 import cv2
+import numpy as np
 import pytest
 import torch
 
 from lit_yolo import OBBDataset
 from lit_yolo.data import BaseDataModule, DetDataModule, OBBDataModule
+
+
+@pytest.fixture(autouse=True)
+def reset_random_seed():
+    """Reset random seed before each test for deterministic results."""
+    np.random.seed(42)
+    yield
 
 
 class TestSyntheticDatasetCreation:
