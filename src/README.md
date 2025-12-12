@@ -200,6 +200,65 @@ class_id x1 y1 x2 y2 x3 y3 x4 y4
 
 All values are normalized between 0 and 1.
 
+## Visualization
+
+Visualize your dataset batches with drawn annotations to verify data loading and augmentation:
+
+### Using the Example Script
+
+```bash
+# Quick demo with synthetic dataset
+python examples/visualize_datamodule.py --synthetic --output viz.jpg
+
+# Visualize your own dataset
+python examples/visualize_datamodule.py --data /path/to/dataset --output viz.jpg
+
+# Visualize with class names
+python examples/visualize_datamodule.py \
+    --data /path/to/dataset \
+    --class-names cat dog bird \
+    --batch-size 4 \
+    --output train_viz.jpg
+
+# Visualize validation set with OBB
+python examples/visualize_datamodule.py \
+    --data /path/to/dataset \
+    --obb \
+    --split val \
+    --output val_obb_viz.jpg
+```
+
+### Using the Python API
+
+```python
+from lit_yolo.data import DetDataModule, OBBDataModule
+
+# Standard detection
+dm = DetDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
+dm.setup("fit")
+
+# Visualize training batch
+grid = dm.visualize_batch(
+    split="train",
+    output_path="train_viz.jpg",
+    class_names=["cat", "dog", "bird"]
+)
+
+# OBB detection
+dm_obb = OBBDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
+dm_obb.setup("fit")
+
+# Visualize with oriented boxes
+grid = dm_obb.visualize_batch(split="train", output_path="obb_viz.jpg")
+```
+
+The visualization creates a grid image showing all samples in a batch with:
+- Drawn bounding boxes (axis-aligned or oriented)
+- Class labels and indices
+- Color-coded boxes per class
+
+See [examples/README.md](../examples/README.md) for more visualization options.
+
 ## Features
 
 - ✅ Logging with structured format
@@ -211,6 +270,7 @@ All values are normalized between 0 and 1.
 - ✅ Modular package structure
 - ✅ Standard detection and OBB support
 - ✅ Synthetic dataset generation for testing and validation
+- ✅ Batch visualization with annotations
 
 ### Dataset Format Support
 

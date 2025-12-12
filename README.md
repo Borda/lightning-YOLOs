@@ -58,6 +58,35 @@ unzip -qq DOTAv1.5.zip
 python -m py_tree DOTAv1.5 -d 1
 ```
 
+## Visualization
+
+Visualize your dataset batches with annotations:
+
+```bash
+# Quick demo with synthetic dataset
+python examples/visualize_datamodule.py --synthetic --output viz.jpg
+
+# Visualize your own dataset
+python examples/visualize_datamodule.py --data /path/to/dataset --output viz.jpg
+
+# Visualize with class names
+python examples/visualize_datamodule.py --data /path/to/dataset \
+    --class-names cat dog bird --output viz.jpg
+```
+
+Or in Python:
+
+```python
+from lit_yolo.data import DetDataModule
+
+# Create datamodule and visualize
+dm = DetDataModule(data="/path/to/dataset", img_size=640, batch_size=8)
+dm.setup("fit")
+grid = dm.visualize_batch(split="train", output_path="viz.jpg")
+```
+
+See [examples/README.md](examples/README.md) for more visualization options.
+
 For detailed usage instructions, see [src/README.md](src/README.md).
 
 ## License
