@@ -1,18 +1,15 @@
 """
-Data utilities, dataset, and data module for YOLO-OBB.
+Utility functions for YOLO data processing and synthetic dataset generation.
 """
 
 import logging
 import math
-import warnings
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import cv2
 import numpy as np
 import torch
-from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
 

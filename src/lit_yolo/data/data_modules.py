@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from lit_yolo.data.datasets import DetDataset, OBBDataset
 from lit_yolo.data.utils import (
