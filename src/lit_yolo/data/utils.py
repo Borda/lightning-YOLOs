@@ -417,6 +417,8 @@ def generate_synthetic_sample(
                 continue
 
             # Check overlap with existing objects
+            # TODO: Consider spatial indexing (e.g., grid-based) for more efficient overlap checking
+            # with many objects to reduce O(n² × attempts) complexity
             max_overlap = 0.0
             for existing_label in labels:
                 _, ex_cx, ex_cy, ex_w, ex_h = existing_label
