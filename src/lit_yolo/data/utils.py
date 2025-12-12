@@ -335,6 +335,19 @@ def generate_synthetic_sample(
 ) -> tuple[np.ndarray, list[tuple[int, float, float, float, float]]]:
     """Generate a single synthetic image with labeled objects.
 
+    This function creates synthetic images with geometric shapes (squares, triangles, circles)
+    while preventing objects from significantly overlapping with each other or extending outside
+    image boundaries. Uses IoU-based overlap detection for precise control.
+
+    Algorithm:
+        For each object to place:
+        1. Generate random position and size
+        2. Calculate bounding box with 20% padding for shape coverage
+        3. Check boundary overlap <= threshold
+        4. Check IoU with all existing objects <= threshold
+        5. Accept if constraints met, else retry up to max_placement_attempts
+        6. Skip object if placement fails (logs debug message)
+
     Args:
         img_size: Size of the image (square).
         min_objects: Minimum number of objects to generate.
@@ -344,10 +357,12 @@ def generate_synthetic_sample(
         max_size_ratio: Maximum object size as ratio of image size.
         overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
                           Lower values mean less overlap is allowed. Default is 0.3.
+                          Recommended values: 0.0 (no overlap), 0.1 (strict), 0.3 (balanced), 0.5 (lenient).
         max_placement_attempts: Maximum number of attempts to place each object. Default is 50.
 
     Returns:
         Tuple of (image, labels) where labels is a list of (class, cx, cy, w, h) tuples.
+        Note: Actual number of objects may be less than requested if placement fails.
     """
     # Create blank image with gray background
     img = np.ones((img_size, img_size, 3), dtype=np.uint8) * 128

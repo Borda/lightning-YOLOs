@@ -125,6 +125,10 @@ class BaseDataModule(LightningDataModule):
         Generates images containing basic shapes (square, triangle, circle) with different colors
         (red, green, blue). Classes can be defined by shape or color depending on class_mode.
 
+        The overlap_threshold parameter controls object placement to prevent objects from hiding
+        behind each other or extending outside image boundaries. This uses IoU-based overlap
+        detection - lower thresholds create stricter separation but may place fewer objects.
+
         Args:
             root: Root directory where dataset will be created.
             num_samples: Total number of samples to generate.
@@ -136,7 +140,9 @@ class BaseDataModule(LightningDataModule):
             min_size_ratio: Minimum object size as ratio of image size (default 0.1 = 10%).
             max_size_ratio: Maximum object size as ratio of image size (default 0.2 = 20%).
             overlap_threshold: Maximum allowed IoU overlap between objects and with boundaries (0-1).
-                              Lower values mean less overlap is allowed. Default is 0.3.
+                              Lower values mean less overlap is allowed. Default is 0.3 (balanced).
+                              Use 0.0 for no overlap (strictest), 0.1 for minimal overlap,
+                              0.5 for lenient placement allowing denser object packing.
             seed: Random seed for reproducibility.
 
         Returns:
