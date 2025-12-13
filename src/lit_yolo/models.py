@@ -90,7 +90,22 @@ class BaseLitYOLO(pl.LightningModule):
                 yaml.dump(cfg, f)
                 temp_yaml = f.name
             try:
-                yolo = YOLO(temp_yaml)
+                new_yolo = YOLO(temp_yaml)
+                if model_name.endswith(".pt"):
+                    # Transfer weights from pretrained model
+                    pretrained_dict = yolo.model.state_dict()
+                    new_dict = new_yolo.model.state_dict()
+
+                    # Filter out mismatched shapes (head layers)
+                    pretrained_dict = {
+                        k: v for k, v in pretrained_dict.items() if k in new_dict and v.shape == new_dict[k].shape
+                    }
+
+                    new_dict.update(pretrained_dict)
+                    new_yolo.model.load_state_dict(new_dict)
+                    logger.info(f"Transferred weights from {model_name}")
+
+                yolo = new_yolo
             finally:
                 Path(temp_yaml).unlink(missing_ok=True)
             logger.info(f"Rebuilt model: {model_nc} -> {num_classes} classes")
@@ -122,9 +137,10 @@ class BaseLitYOLO(pl.LightningModule):
         # Initialize metrics on the correct device
         if self.train_map is None:
             if TORCHMETRICS_AVAILABLE:
-                self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
+                # Training metrics disabled to save time and avoid NMS errors on raw outputs
+                self.train_map = None
                 self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
-                logger.info("Metrics enabled: train and val mAP")
+                logger.info("Metrics enabled: val mAP (train mAP disabled)")
             else:
                 logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
@@ -284,11 +300,17 @@ class LitYOLOOBB(BaseLitYOLO):
             )
 
             has_pred = pred is not None and len(pred)
+            if has_pred:
+                # Convert OBB to xyxy and clamp to valid image bounds [0, img_size]
+                pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
+                pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
+                pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
+            else:
+                pred_boxes = torch.empty((0, 4), device=self.device)
+
             preds_list.append(
                 {
-                    "boxes": obb_to_xyxy(pred[:, :5], img_size)
-                    if has_pred
-                    else torch.empty((0, 4), device=self.device),
+                    "boxes": pred_boxes,
                     "scores": pred[:, 5] if has_pred else torch.empty(0, device=self.device),
                     "labels": pred[:, 6].long() if has_pred else torch.empty(0, dtype=torch.long, device=self.device),
                 }
@@ -343,11 +365,17 @@ class LitYOLODet(BaseLitYOLO):
             )
 
             has_pred = pred is not None and len(pred)
+            if has_pred:
+                # Clamp predictions to valid image bounds [0, img_size]
+                pred_boxes = pred[:, :4].clone()
+                pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
+                pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
+            else:
+                pred_boxes = torch.empty((0, 4), device=self.device)
+
             preds_list.append(
                 {
-                    "boxes": xywh_to_xyxy(pred[:, :4], img_size)
-                    if has_pred
-                    else torch.empty((0, 4), device=self.device),
+                    "boxes": pred_boxes,
                     "scores": pred[:, 4] if has_pred else torch.empty(0, device=self.device),
                     "labels": pred[:, 5].long() if has_pred else torch.empty(0, dtype=torch.long, device=self.device),
                 }
