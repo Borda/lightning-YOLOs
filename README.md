@@ -33,16 +33,16 @@ ______________________________________________________________________
 
 ## ✨ Features
 
-| Feature                   | Description                                                                           | Status |
-| ------------------------- | ------------------------------------------------------------------------------------- | ------ |
-| **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                      | ✅     |
-| **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects              | ✅     |
-| 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                         | 🔄     |
+| Feature                   | Description                                                                   | Status |
+| ------------------------- | ----------------------------------------------------------------------------- | ------ |
+| **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection              | ✅     |
+| **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects      | ✅     |
+| 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                 | 🔄     |
 | **⚡ Mixed Precision**    | Various Precisions and Training strategies with Lightning for faster training | ✅     |
-| **🔧 Auto Configuration** | Automatic class detection from dataset                                                | ✅     |
+| **🔧 Auto Configuration** | Automatic class detection from dataset                                        | ✅     |
 | **🏗️ Modular Design**     | Clean, extensible architecture with Lightning                                 | ✅     |
-| **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                                      | ✅     |
-| **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                             | ✅     |
+| **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                              | ✅     |
+| **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                     | ✅     |
 
 ______________________________________________________________________
 

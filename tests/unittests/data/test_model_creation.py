@@ -1,20 +1,23 @@
-from lit_yolo.models import BaseLitYOLO
-import torch
 import pytest
+import torch
+
+from lit_yolo.models import BaseLitYOLO
+
 
 @pytest.fixture
 def model():
     return BaseLitYOLO("yolo11n-obb.pt", 10)
 
+
 class TestModel:
-    """Tests for creating model with Lightning"""
+    """Tests for creating model with Lightning."""
 
     def test_create_model(self, model):
-        """Test creation of torch.nn.Module"""
+        """Test creation of torch.nn.Module."""
         assert isinstance(model, torch.nn.Module)
 
     def test_output(self, model):
-        """Check that output is a tuple and the tensors have correct size"""
+        """Check that output is a tuple and the tensors have correct size."""
         image = torch.rand([1, 3, 640, 640])
         output = model(image)
         assert isinstance(output, tuple)
