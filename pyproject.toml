@@ -33,7 +33,7 @@ dependencies = [
   "matplotlib>=3.3",
   "numpy>=1.20",
   "opencv-python>=4.5",
-  "pytorch-lightning>=2,<2.6",
+  "lightning>=2.6",
   "pyyaml>=5.1",
   "torch>=2",
   "torchmetrics[detection]",

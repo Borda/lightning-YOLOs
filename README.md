@@ -2,7 +2,7 @@
 
 # Lightning ⚡ YOLOs
 
-**Educational & Experimental YOLO Training Framework with PyTorch Lightning**
+**Educational & Experimental YOLO Training Framework with Lightning**
 
 [![Experimental](https://img.shields.io/badge/status-experimental-orange.svg)](https://github.com/Borda/lightning-YOLOs)
 [![CI Testing](https://github.com/Borda/lightning-YOLOs/workflows/CI%20Testing/badge.svg)](https://github.com/Borda/lightning-YOLOs/actions)
@@ -16,13 +16,13 @@ ______________________________________________________________________
 
 ## 🎯 Overview
 
-Lightning-YOLOs is an educational framework for learning how to train YOLO models using PyTorch Lightning. This project demonstrates best practices in ML engineering, modular architecture design, and modern Python development workflows.
+Lightning-YOLOs is an educational framework for learning how to train YOLO models using Lightning. This project demonstrates best practices in ML engineering, modular architecture design, and modern Python development workflows.
 
-> 🎓 **Learning Goals**: Ideal for students and developers who want to understand how to integrate YOLO models with PyTorch Lightning, implement both standard and oriented bounding box detection, and build production-ready ML codebases.
+> 🎓 **Learning Goals**: Ideal for students and developers who want to understand how to integrate YOLO models with Lightning, implement both standard and oriented bounding box detection, and build production-ready ML codebases.
 
 ### 🔥 Why This Project Exists
 
-- **📚 Educational Focus**: Learn PyTorch Lightning patterns with real-world YOLO models
+- **📚 Educational Focus**: Learn Lightning patterns with real-world YOLO models
 - **🧪 Experimentation**: Safe environment to test ideas and learn ML workflows
 - **🎨 Multiple Detection Modes**: Explore both standard bounding boxes and Oriented Bounding Boxes (OBB)
 - **📊 Modern Practices**: See how to integrate metrics, logging, and testing in ML projects
@@ -38,9 +38,9 @@ ______________________________________________________________________
 | **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                      | ✅     |
 | **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects              | ✅     |
 | 📊 Advanced Metrics       | TorchMetrics mAP calculation for both training and validation                         | 🔄     |
-| **⚡ Mixed Precision**    | Various Precisions and Training strategies with PyTorch Lightning for faster training | ✅     |
+| **⚡ Mixed Precision**    | Various Precisions and Training strategies with Lightning for faster training | ✅     |
 | **🔧 Auto Configuration** | Automatic class detection from dataset                                                | ✅     |
-| **🏗️ Modular Design**     | Clean, extensible architecture with PyTorch Lightning                                 | ✅     |
+| **🏗️ Modular Design**     | Clean, extensible architecture with Lightning                                 | ✅     |
 | **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                                      | ✅     |
 | **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                             | ✅     |
 
@@ -136,7 +136,7 @@ ______________________________________________________________________
 
 ```python
 from lit_yolo import LitYOLODet, DetDataModule
-from pytorch_lightning import Trainer
+from lightning import Trainer
 
 # Or use components directly for more control (learn the architecture!)
 dm = DetDataModule(data="/path/to/dataset", batch_size=8)
@@ -150,7 +150,7 @@ trainer.fit(model, datamodule=dm)
 
 ```python
 from lit_yolo import LitYOLOOBB, OBBDataModule
-from pytorch_lightning import Trainer
+from lightning import Trainer
 
 # Granular control (understand how components interact)
 dm = OBBDataModule(data="/path/to/data", batch_size=8)
@@ -266,7 +266,7 @@ python -m py_tree DOTAv1.5 -d 1
 
 ### Additional Resources
 
-- 📖 [PyTorch Lightning Docs](https://lightning.ai/docs/pytorch/stable/)
+- 📖 [Lightning Docs](https://lightning.ai/docs/pytorch/stable/)
 - 📖 [Ultralytics YOLO Docs](https://docs.ultralytics.com/)
 - 📝 [Contributing Guide](.github/CONTRIBUTING.md)
 - 📝 [Code of Conduct](.github/CODE_OF_CONDUCT.md)
@@ -302,7 +302,7 @@ ______________________________________________________________________
 
 This is an experimental educational project for learning purposes:
 
-- ✅ Great for learning PyTorch Lightning + YOLO
+- ✅ Great for learning Lightning + YOLO
 - ✅ Demonstrates modern ML engineering practices
 - ✅ Safe for experimentation and education
 - ⚠️ Not battle-tested for production use
@@ -320,7 +320,7 @@ ______________________________________________________________________
 
 <div align="center">
 
-**Built with ❤️ for learning PyTorch Lightning & YOLO**
+**Built with ❤️ for learning Lightning & YOLO**
 
 [Report Issues](https://github.com/Borda/lightning-YOLOs/issues) • [Ask Questions](https://github.com/Borda/lightning-YOLOs/discussions) • [Share Learning Experiences](https://github.com/Borda/lightning-YOLOs/discussions)
 

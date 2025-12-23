@@ -3,8 +3,8 @@
 import logging
 from pathlib import Path
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+import lightning as pl
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 from lit_yolo.data import DetDataModule, OBBDataModule
 from lit_yolo.models import LitYOLODet, LitYOLOOBB

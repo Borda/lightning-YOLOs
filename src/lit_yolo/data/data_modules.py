@@ -7,7 +7,7 @@ from typing import Any, Literal, cast
 import cv2
 import numpy as np
 import torch
-from pytorch_lightning import LightningDataModule
+from lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 

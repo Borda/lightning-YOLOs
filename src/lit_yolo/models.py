@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import pytorch_lightning as pl
+import lightning as pl
 import torch
 import yaml
 from ultralytics import YOLO
