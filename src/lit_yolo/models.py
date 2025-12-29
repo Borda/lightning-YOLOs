@@ -202,11 +202,80 @@ class BaseLitYOLO(pl.LightningModule):
         return self._compute_step(batch, "val")
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with predictions.
+        """Common metric update logic for detection tasks.
 
-        Must be implemented by subclasses.
+        Handles NMS, batch processing, and formatting for torchmetrics.
+        Subclasses must implement:
+            - is_rotated (property)
+            - _process_target_boxes(gt_box)
+            - _process_pred_boxes(pred)
         """
-        raise NotImplementedError("Subclasses must implement _update_metrics")
+        raw = preds[0] if isinstance(preds, (list, tuple)) else preds
+        # Ensure float32 for NMS to avoid AMP issues
+        if isinstance(raw, torch.Tensor):
+            raw = raw.float()
+
+        # Common NMS execution
+        nms_preds = non_max_suppression(
+            raw,
+            conf_thres=0.001,
+            iou_thres=0.7,
+            nc=self.nc,
+            max_det=300,
+            rotated=self.is_rotated,
+        )
+
+        preds_list, targets_list = [], []
+
+        for i, pred in enumerate(nms_preds):
+            mask = batch["batch_idx"] == i
+            # Extract ground truth for this image
+            # Note: batch["bboxes"] shape is preserved even if mask is empty
+            gt_box = batch["bboxes"][mask]
+            gt_cls = batch["cls"][mask].squeeze(-1)
+
+            # Process targets (convert to xyxy)
+            targets_list.append(
+                {
+                    "boxes": self._process_target_boxes(gt_box),
+                    "labels": gt_cls.long(),
+                }
+            )
+
+            # Process predictions
+            has_pred = pred is not None and len(pred) > 0
+            if has_pred:
+                p_boxes, p_scores, p_cls = self._process_pred_boxes(pred)
+                preds_list.append(
+                    {
+                        "boxes": p_boxes,
+                        "scores": p_scores,
+                        "labels": p_cls,
+                    }
+                )
+            else:
+                preds_list.append(
+                    {
+                        "boxes": torch.empty((0, 4), device=self.device),
+                        "scores": torch.empty(0, device=self.device),
+                        "labels": torch.empty(0, dtype=torch.long, device=self.device),
+                    }
+                )
+
+        metric.update(preds_list, targets_list)
+
+    @property
+    def is_rotated(self) -> bool:
+        """Whether the model outputs rotated bounding boxes."""
+        raise NotImplementedError
+
+    def _process_target_boxes(self, gt_box: torch.Tensor) -> torch.Tensor:
+        """Convert ground truth boxes to xyxy format."""
+        raise NotImplementedError
+
+    def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Process prediction tensor into (boxes_xyxy, scores, labels)."""
+        raise NotImplementedError
 
     def _log_metrics(self, stage: str):
         """Log computed metrics."""
@@ -282,50 +351,26 @@ class LitYOLOOBB(BaseLitYOLO):
         """
         super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
 
-    def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with OBB predictions."""
-        raw = preds[0] if isinstance(preds, (list, tuple)) else preds
-        # Ensure float32 for NMS to avoid AMP issues
-        if isinstance(raw, torch.Tensor):
-            raw = raw.float()
+    @property
+    def is_rotated(self) -> bool:
+        return True
 
-        nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=True)
+    def _process_target_boxes(self, gt_box: torch.Tensor) -> torch.Tensor:
+        """Convert normalized xywhr targets to xyxy pixels."""
+        if len(gt_box) == 0:
+            return torch.empty((0, 4), device=self.device)
+        # Convert rotated boxes to enclosing axis-aligned boxes for mAP calculation
+        return obb_to_xyxy(gt_box, self.img_size)
 
-        preds_list, targets_list = [], []
-        img_size = self.img_size
+    def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Process OBB predictions (xywhr, conf, cls) to (xyxy, conf, cls)."""
+        # NMS returns OBB predictions in pixel coordinates in xywhr format
+        # Convert to enclosing xyxy (no scaling needed as already in pixels)
+        pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
+        pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, self.img_size)
+        pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, self.img_size)
 
-        for i, pred in enumerate(nms_preds):
-            mask = batch["batch_idx"] == i
-            gt_cls = batch["cls"][mask].squeeze(-1) if mask.sum() else torch.empty(0, device=self.device)
-            gt_box = batch["bboxes"][mask] if mask.sum() else torch.empty((0, 5), device=self.device)
-
-            # Ground truth: Convert from normalized [0,1] xywhr to pixel coordinates xyxy
-            targets_list.append(
-                {
-                    "boxes": obb_to_xyxy(gt_box, img_size) if len(gt_box) else torch.empty((0, 4), device=self.device),
-                    "labels": gt_cls.long(),
-                }
-            )
-
-            has_pred = pred is not None and len(pred)
-            if has_pred:
-                # NMS returns OBB predictions in pixel coordinates in xywhr format
-                # Convert to xyxy (no scaling needed as already in pixels) and clamp to valid bounds
-                pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
-                pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
-                pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
-            else:
-                pred_boxes = torch.empty((0, 4), device=self.device)
-
-            preds_list.append(
-                {
-                    "boxes": pred_boxes,
-                    "scores": pred[:, 5] if has_pred else torch.empty(0, device=self.device),
-                    "labels": pred[:, 6].long() if has_pred else torch.empty(0, dtype=torch.long, device=self.device),
-                }
-            )
-
-        metric.update(preds_list, targets_list)
+        return pred_boxes, pred[:, 5], pred[:, 6].long()
 
 
 class LitYOLODet(BaseLitYOLO):
@@ -353,47 +398,21 @@ class LitYOLODet(BaseLitYOLO):
         """
         super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
 
-    def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with standard detection predictions."""
-        raw = preds[0] if isinstance(preds, (list, tuple)) else preds
-        # Ensure float32 for NMS to avoid AMP issues
-        if isinstance(raw, torch.Tensor):
-            raw = raw.float()
+    @property
+    def is_rotated(self) -> bool:
+        return False
 
-        nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=False)
+    def _process_target_boxes(self, gt_box: torch.Tensor) -> torch.Tensor:
+        """Convert normalized xywh targets to xyxy pixels."""
+        if len(gt_box) == 0:
+            return torch.empty((0, 4), device=self.device)
+        return xywh_to_xyxy(gt_box, self.img_size)
 
-        preds_list, targets_list = [], []
-        img_size = self.img_size
+    def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Process detection predictions (xyxy, conf, cls)."""
+        # NMS returns predictions in pixel coordinates in xyxy format
+        pred_boxes = pred[:, :4].clone()
+        pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, self.img_size)
+        pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, self.img_size)
 
-        for i, pred in enumerate(nms_preds):
-            mask = batch["batch_idx"] == i
-            gt_cls = batch["cls"][mask].squeeze(-1) if mask.sum() else torch.empty(0, device=self.device)
-            gt_box = batch["bboxes"][mask] if mask.sum() else torch.empty((0, 4), device=self.device)
-
-            # Ground truth: Convert from normalized [0,1] xywh to pixel coordinates xyxy
-            targets_list.append(
-                {
-                    "boxes": xywh_to_xyxy(gt_box, img_size) if len(gt_box) else torch.empty((0, 4), device=self.device),
-                    "labels": gt_cls.long(),
-                }
-            )
-
-            has_pred = pred is not None and len(pred)
-            if has_pred:
-                # NMS returns predictions in pixel coordinates in xyxy format
-                # Clamp to valid image bounds to ensure consistency
-                pred_boxes = pred[:, :4].clone()
-                pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
-                pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
-            else:
-                pred_boxes = torch.empty((0, 4), device=self.device)
-
-            preds_list.append(
-                {
-                    "boxes": pred_boxes,
-                    "scores": pred[:, 4] if has_pred else torch.empty(0, device=self.device),
-                    "labels": pred[:, 5].long() if has_pred else torch.empty(0, dtype=torch.long, device=self.device),
-                }
-            )
-
-        metric.update(preds_list, targets_list)
+        return pred_boxes, pred[:, 4], pred[:, 5].long()
