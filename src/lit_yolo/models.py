@@ -359,7 +359,7 @@ class LitYOLODet(BaseLitYOLO):
 
             has_pred = pred is not None and len(pred)
             if has_pred:
-                # Clamp predictions to valid image bounds [0, img_size]
+                # Predictions from NMS are already in xyxy pixel format, clamp to valid image bounds [0, img_size]
                 pred_boxes = pred[:, :4].clone()
                 pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
                 pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
