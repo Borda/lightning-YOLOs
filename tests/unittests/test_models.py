@@ -72,7 +72,8 @@ class TestLitYOLOOBBProcessMethods:
         assert labels.dtype == torch.long
 
     def test_process_pred_boxes_single_prediction(self, obb_model):
-        """Test _process_pred_boxes processes single OBB prediction correctly."""
+        """Test _process_pred_boxes processes single OBB prediction
+        correctly."""
         # Prediction in pixel coordinates: xywhr (center, size, angle), conf, cls
         pred = torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]])
         boxes, scores, labels = obb_model._process_pred_boxes(pred)
@@ -287,7 +288,8 @@ class TestUpdateMetricsLogic:
         assert result.shape == (0, 4)
 
     def test_process_empty_tensors_det(self, det_model):
-        """Test that detection model processes empty target tensors without error."""
+        """Test that detection model processes empty target tensors without
+        error."""
         # Test that empty ground truth boxes are handled correctly
         gt_box_empty = torch.empty((0, 4))
         result = det_model._process_target_boxes(gt_box_empty)
@@ -319,7 +321,8 @@ class TestUpdateMetricsLogic:
         assert labels.dtype == torch.long
 
     def test_empty_predictions_create_correct_format_det(self, det_model):
-        """Test that empty predictions are formatted correctly for detection."""
+        """Test that empty predictions are formatted correctly for
+        detection."""
         # When NMS returns None or empty predictions, we should create empty tensors
         empty_pred = torch.empty((0, 6))
         boxes, scores, labels = det_model._process_pred_boxes(empty_pred)
