@@ -140,10 +140,9 @@ class BaseLitYOLO(pl.LightningModule):
             if TORCHMETRICS_AVAILABLE:
                 self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
                 self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
-                if self.compute_train_map:
-                    logger.info("Metrics enabled: train mAP (with extra forward pass), val mAP")
-                else:
-                    logger.info("Metrics enabled: val mAP only (train mAP disabled for performance)")
+                train_status = "train mAP (with extra forward pass), " if self.compute_train_map else ""
+                val_status = "val mAP" + (" only" if not self.compute_train_map else "")
+                logger.info(f"Metrics enabled: {train_status}{val_status}")
             else:
                 logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
