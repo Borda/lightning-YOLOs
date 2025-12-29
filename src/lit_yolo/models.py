@@ -194,7 +194,7 @@ class BaseLitYOLO(pl.LightningModule):
             # Skip training metrics if compute_train_map is disabled
             if stage == "train" and not self.compute_train_map:
                 return total
-            
+
             try:
                 if stage == "train":
                     # For training, we need to run inference to get proper predictions for NMS
