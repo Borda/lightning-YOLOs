@@ -62,6 +62,7 @@ class BaseLitYOLO(pl.LightningModule):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
+        compute_train_map: bool = True,
     ):
         """Initialize base YOLO Lightning module.
 
@@ -72,6 +73,12 @@ class BaseLitYOLO(pl.LightningModule):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
+            compute_train_map: Whether to compute mAP metrics during training.
+                **Performance Note**: When enabled (default), training mAP computation
+                requires running inference in eval mode for each training batch, effectively
+                doubling the forward passes per batch. This provides accurate training metrics
+                but significantly increases training time. Set to False to disable training mAP
+                and improve training speed. Validation mAP is always computed.
         """
         super().__init__()
         self.save_hyperparameters()
@@ -83,6 +90,7 @@ class BaseLitYOLO(pl.LightningModule):
         self.weight_decay = weight_decay
         self.warmup_epochs = warmup_epochs
         self.img_size = img_size
+        self.compute_train_map = compute_train_map
 
         yolo = YOLO(model_name)
         model_nc = yolo.model.yaml.get("nc", num_classes)
@@ -132,7 +140,10 @@ class BaseLitYOLO(pl.LightningModule):
             if TORCHMETRICS_AVAILABLE:
                 self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
                 self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
-                logger.info("Metrics enabled: train mAP, val mAP")
+                if self.compute_train_map:
+                    logger.info("Metrics enabled: train mAP (with extra forward pass), val mAP")
+                else:
+                    logger.info("Metrics enabled: val mAP only (train mAP disabled for performance)")
             else:
                 logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
@@ -149,6 +160,13 @@ class BaseLitYOLO(pl.LightningModule):
 
         Computes the loss, logs metrics, and updates the metric tracker by calling
         the abstract _update_metrics method (which must be implemented by subclasses).
+
+        **Performance Note for Training Metrics**: When `compute_train_map=True` (default),
+        training mAP computation requires an additional forward pass in eval mode for each
+        training batch. This doubles the number of forward passes per batch during training,
+        significantly increasing training time. The benefit is having accurate mAP metrics
+        during training. Set `compute_train_map=False` in the constructor to disable this
+        and improve training speed.
 
         Args:
             batch: Dictionary containing 'img' and other batch data.
@@ -174,6 +192,10 @@ class BaseLitYOLO(pl.LightningModule):
         # Update metrics
         metric = self.train_map if stage == "train" else self.val_map
         if metric is not None:
+            # Skip training metrics if compute_train_map is disabled
+            if stage == "train" and not self.compute_train_map:
+                return total
+            
             try:
                 if stage == "train":
                     # For training, we need to run inference to get proper predictions for NMS
@@ -340,6 +362,7 @@ class LitYOLOOBB(BaseLitYOLO):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
+        compute_train_map: bool = True,
     ):
         """Initialize YOLO-OBB Lightning module.
 
@@ -350,8 +373,11 @@ class LitYOLOOBB(BaseLitYOLO):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
+            compute_train_map: Whether to compute mAP metrics during training.
+                When enabled (default), requires an extra forward pass per training batch.
+                See BaseLitYOLO docstring for performance details.
         """
-        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
+        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size, compute_train_map)
 
     @property
     def is_rotated(self) -> bool:
@@ -387,6 +413,7 @@ class LitYOLODet(BaseLitYOLO):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
+        compute_train_map: bool = True,
     ):
         """Initialize standard YOLO detection Lightning module.
 
@@ -397,8 +424,11 @@ class LitYOLODet(BaseLitYOLO):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
+            compute_train_map: Whether to compute mAP metrics during training.
+                When enabled (default), requires an extra forward pass per training batch.
+                See BaseLitYOLO docstring for performance details.
         """
-        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
+        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size, compute_train_map)
 
     @property
     def is_rotated(self) -> bool:

@@ -28,6 +28,7 @@ def train_obb(
     log_every_n_steps: int = 10,
     save_top_k: int = 3,
     output_dir: str = "./outputs",
+    compute_train_map: bool = True,
 ) -> None:
     """Train YOLO-OBB model with PyTorch Lightning.
 
@@ -47,12 +48,16 @@ def train_obb(
         log_every_n_steps: Logging frequency.
         save_top_k: Checkpoints to keep.
         output_dir: Output directory.
+        compute_train_map: Whether to compute mAP during training. When enabled (default),
+            training mAP requires an additional forward pass in eval mode per batch,
+            significantly increasing training time but providing accurate metrics. Set to
+            False to disable and improve training speed. Validation mAP is always computed.
     """
     # DataModule handles dataset creation and class detection
     dm = OBBDataModule(data, img_size, batch_size, workers)
     nc = dm.num_classes  # Triggers auto-detection if needed
 
-    lightning_model = LitYOLOOBB(model, nc, lr, weight_decay, warmup_epochs, img_size)
+    lightning_model = LitYOLOOBB(model, nc, lr, weight_decay, warmup_epochs, img_size, compute_train_map)
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -105,6 +110,7 @@ def train_detect(
     log_every_n_steps: int = 10,
     save_top_k: int = 3,
     output_dir: str = "./outputs",
+    compute_train_map: bool = True,
 ) -> None:
     """Train standard YOLO detection model with PyTorch Lightning.
 
@@ -124,12 +130,16 @@ def train_detect(
         log_every_n_steps: Logging frequency.
         save_top_k: Checkpoints to keep.
         output_dir: Output directory.
+        compute_train_map: Whether to compute mAP during training. When enabled (default),
+            training mAP requires an additional forward pass in eval mode per batch,
+            significantly increasing training time but providing accurate metrics. Set to
+            False to disable and improve training speed. Validation mAP is always computed.
     """
     # DataModule handles dataset creation and class detection
     dm = DetDataModule(data, img_size, batch_size, workers)
     nc = dm.num_classes  # Triggers auto-detection if needed
 
-    lightning_model = LitYOLODet(model, nc, lr, weight_decay, warmup_epochs, img_size)
+    lightning_model = LitYOLODet(model, nc, lr, weight_decay, warmup_epochs, img_size, compute_train_map)
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
