@@ -62,6 +62,7 @@ class BaseLitYOLO(pl.LightningModule):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
+        compute_train_map: bool = True,
     ):
         """Initialize base YOLO Lightning module.
 
@@ -72,6 +73,12 @@ class BaseLitYOLO(pl.LightningModule):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
+            compute_train_map: Whether to compute mAP metrics during training.
+                **Performance Note**: When enabled (default), training mAP computation
+                requires running inference in eval mode for each training batch, effectively
+                doubling the forward passes per batch. This provides accurate training metrics
+                but significantly increases training time. Set to False to disable training mAP
+                and improve training speed. Validation mAP is always computed.
         """
         super().__init__()
         self.save_hyperparameters()
@@ -83,6 +90,7 @@ class BaseLitYOLO(pl.LightningModule):
         self.weight_decay = weight_decay
         self.warmup_epochs = warmup_epochs
         self.img_size = img_size
+        self.compute_train_map = compute_train_map
 
         yolo = YOLO(model_name)
         model_nc = yolo.model.yaml.get("nc", num_classes)
@@ -130,10 +138,11 @@ class BaseLitYOLO(pl.LightningModule):
         # Initialize metrics on the correct device
         if self.train_map is None:
             if TORCHMETRICS_AVAILABLE:
-                # Training metrics disabled to save time and avoid NMS errors on raw outputs
-                self.train_map = None
+                self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
                 self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
-                logger.info("Metrics enabled: val mAP (train mAP disabled)")
+                train_status = "train mAP (with extra forward pass), " if self.compute_train_map else ""
+                val_status = "val mAP" + (" only" if not self.compute_train_map else "")
+                logger.info(f"Metrics enabled: {train_status}{val_status}")
             else:
                 logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
@@ -150,6 +159,13 @@ class BaseLitYOLO(pl.LightningModule):
 
         Computes the loss, logs metrics, and updates the metric tracker by calling
         the abstract _update_metrics method (which must be implemented by subclasses).
+
+        **Performance Note for Training Metrics**: When `compute_train_map=True` (default),
+        training mAP computation requires an additional forward pass in eval mode for each
+        training batch. This doubles the number of forward passes per batch during training,
+        significantly increasing training time. The benefit is having accurate mAP metrics
+        during training. Set `compute_train_map=False` in the constructor to disable this
+        and improve training speed.
 
         Args:
             batch: Dictionary containing 'img' and other batch data.
@@ -175,8 +191,25 @@ class BaseLitYOLO(pl.LightningModule):
         # Update metrics
         metric = self.train_map if stage == "train" else self.val_map
         if metric is not None:
+            # Skip training metrics if compute_train_map is disabled
+            if stage == "train" and not self.compute_train_map:
+                return total
+
             try:
-                self._update_metrics(preds, batch_dev, metric)
+                if stage == "train":
+                    # For training, we need to run inference to get proper predictions for NMS
+                    # This adds overhead but ensures correct metrics
+                    with torch.no_grad():
+                        prev_training = self.model.training
+                        self.model.eval()
+                        try:
+                            preds_eval = self.model(batch["img"])
+                            self._update_metrics(preds_eval, batch_dev, metric)
+                        finally:
+                            if prev_training:
+                                self.model.train()
+                else:
+                    self._update_metrics(preds, batch_dev, metric)
             except Exception as e:
                 logger.warning(f"{stage} metrics failed: {e}")
 
@@ -192,11 +225,80 @@ class BaseLitYOLO(pl.LightningModule):
         return self._compute_step(batch, "val")
 
     def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with predictions.
+        """Common metric update logic for detection tasks.
 
-        Must be implemented by subclasses.
+        Handles NMS, batch processing, and formatting for torchmetrics.
+        Subclasses must implement:
+            - is_rotated (property)
+            - _process_target_boxes(gt_box)
+            - _process_pred_boxes(pred)
         """
-        raise NotImplementedError("Subclasses must implement _update_metrics")
+        raw = preds[0] if isinstance(preds, (list, tuple)) else preds
+        # Ensure float32 for NMS to avoid AMP issues
+        if isinstance(raw, torch.Tensor):
+            raw = raw.float()
+
+        # Common NMS execution
+        nms_preds = non_max_suppression(
+            raw,
+            conf_thres=0.001,
+            iou_thres=0.7,
+            nc=self.nc,
+            max_det=300,
+            rotated=self.is_rotated,
+        )
+
+        preds_list, targets_list = [], []
+
+        for i, pred in enumerate(nms_preds):
+            mask = batch["batch_idx"] == i
+            # Extract ground truth for this image
+            # Note: returns an empty tensor with correct shape when mask is empty
+            gt_box = batch["bboxes"][mask]
+            gt_cls = batch["cls"][mask].squeeze(-1)
+
+            # Process targets (convert to xyxy)
+            targets_list.append(
+                {
+                    "boxes": self._process_target_boxes(gt_box),
+                    "labels": gt_cls.long(),
+                }
+            )
+
+            # Process predictions
+            has_pred = pred is not None and len(pred) > 0
+            if has_pred:
+                p_boxes, p_scores, p_cls = self._process_pred_boxes(pred)
+                preds_list.append(
+                    {
+                        "boxes": p_boxes,
+                        "scores": p_scores,
+                        "labels": p_cls,
+                    }
+                )
+            else:
+                preds_list.append(
+                    {
+                        "boxes": torch.empty((0, 4), device=self.device),
+                        "scores": torch.empty(0, device=self.device),
+                        "labels": torch.empty(0, dtype=torch.long, device=self.device),
+                    }
+                )
+
+        metric.update(preds_list, targets_list)
+
+    @property
+    def is_rotated(self) -> bool:
+        """Whether the model outputs rotated bounding boxes."""
+        raise NotImplementedError
+
+    def _process_target_boxes(self, gt_box: torch.Tensor) -> torch.Tensor:
+        """Convert ground truth boxes to xyxy format."""
+        raise NotImplementedError
+
+    def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Process prediction tensor into (boxes_xyxy, scores, labels)."""
+        raise NotImplementedError
 
     def _log_metrics(self, stage: str):
         """Log computed metrics."""
@@ -259,6 +361,7 @@ class LitYOLOOBB(BaseLitYOLO):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
+        compute_train_map: bool = True,
     ):
         """Initialize YOLO-OBB Lightning module.
 
@@ -269,49 +372,32 @@ class LitYOLOOBB(BaseLitYOLO):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
+            compute_train_map: Whether to compute mAP metrics during training.
+                When enabled (default), requires an extra forward pass per training batch.
+                See BaseLitYOLO docstring for performance details.
         """
-        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
+        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size, compute_train_map)
 
-    def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with OBB predictions."""
-        raw = preds[0] if isinstance(preds, (list, tuple)) else preds
-        nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=True)
+    @property
+    def is_rotated(self) -> bool:
+        return True
 
-        preds_list, targets_list = [], []
-        img_size = self.img_size
+    def _process_target_boxes(self, gt_box: torch.Tensor) -> torch.Tensor:
+        """Convert normalized xywhr targets to xyxy pixels."""
+        if len(gt_box) == 0:
+            return torch.empty((0, 4), device=self.device)
+        # Convert rotated boxes to enclosing axis-aligned boxes for mAP calculation
+        return obb_to_xyxy(gt_box, self.img_size)
 
-        for i, pred in enumerate(nms_preds):
-            mask = batch["batch_idx"] == i
-            gt_cls = batch["cls"][mask].squeeze(-1) if mask.sum() else torch.empty(0, device=self.device)
-            gt_box = batch["bboxes"][mask] if mask.sum() else torch.empty((0, 5), device=self.device)
+    def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Process OBB predictions (xywhr, conf, cls) to (xyxy, conf, cls)."""
+        # NMS returns OBB predictions in pixel coordinates in xywhr format
+        # Convert to enclosing xyxy (no scaling needed as already in pixels)
+        pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
+        pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, self.img_size)
+        pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, self.img_size)
 
-            # Ground truth: Convert from normalized [0,1] xywhr to pixel coordinates xyxy
-            targets_list.append(
-                {
-                    "boxes": obb_to_xyxy(gt_box, img_size) if len(gt_box) else torch.empty((0, 4), device=self.device),
-                    "labels": gt_cls.long(),
-                }
-            )
-
-            has_pred = pred is not None and len(pred)
-            if has_pred:
-                # NMS returns OBB predictions in pixel coordinates in xywhr format
-                # Convert to xyxy (no scaling needed as already in pixels) and clamp to valid bounds
-                pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
-                pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
-                pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
-            else:
-                pred_boxes = torch.empty((0, 4), device=self.device)
-
-            preds_list.append(
-                {
-                    "boxes": pred_boxes,
-                    "scores": pred[:, 5] if has_pred else torch.empty(0, device=self.device),
-                    "labels": pred[:, 6].long() if has_pred else torch.empty(0, dtype=torch.long, device=self.device),
-                }
-            )
-
-        metric.update(preds_list, targets_list)
+        return pred_boxes, pred[:, 5], pred[:, 6].long()
 
 
 class LitYOLODet(BaseLitYOLO):
@@ -326,6 +412,7 @@ class LitYOLODet(BaseLitYOLO):
         weight_decay: float = 5e-4,
         warmup_epochs: int = 3,
         img_size: int = 640,
+        compute_train_map: bool = True,
     ):
         """Initialize standard YOLO detection Lightning module.
 
@@ -336,46 +423,27 @@ class LitYOLODet(BaseLitYOLO):
             weight_decay: L2 regularization weight.
             warmup_epochs: Number of warmup epochs.
             img_size: Input image size.
+            compute_train_map: Whether to compute mAP metrics during training.
+                When enabled (default), requires an extra forward pass per training batch.
+                See BaseLitYOLO docstring for performance details.
         """
-        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size)
+        super().__init__(model_name, num_classes, lr, weight_decay, warmup_epochs, img_size, compute_train_map)
 
-    def _update_metrics(self, preds: Any, batch: dict, metric):
-        """Update metrics with standard detection predictions."""
-        raw = preds[0] if isinstance(preds, (list, tuple)) else preds
-        nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=False)
+    @property
+    def is_rotated(self) -> bool:
+        return False
 
-        preds_list, targets_list = [], []
-        img_size = self.img_size
+    def _process_target_boxes(self, gt_box: torch.Tensor) -> torch.Tensor:
+        """Convert normalized xywh targets to xyxy pixels."""
+        if len(gt_box) == 0:
+            return torch.empty((0, 4), device=self.device)
+        return xywh_to_xyxy(gt_box, self.img_size)
 
-        for i, pred in enumerate(nms_preds):
-            mask = batch["batch_idx"] == i
-            gt_cls = batch["cls"][mask].squeeze(-1) if mask.sum() else torch.empty(0, device=self.device)
-            gt_box = batch["bboxes"][mask] if mask.sum() else torch.empty((0, 4), device=self.device)
+    def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Process detection predictions (xyxy, conf, cls)."""
+        # NMS returns predictions in pixel coordinates in xyxy format
+        pred_boxes = pred[:, :4].clone()
+        pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, self.img_size)
+        pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, self.img_size)
 
-            # Ground truth: Convert from normalized [0,1] xywh to pixel coordinates xyxy
-            targets_list.append(
-                {
-                    "boxes": xywh_to_xyxy(gt_box, img_size) if len(gt_box) else torch.empty((0, 4), device=self.device),
-                    "labels": gt_cls.long(),
-                }
-            )
-
-            has_pred = pred is not None and len(pred)
-            if has_pred:
-                # NMS returns predictions in pixel coordinates in xyxy format
-                # Clamp to valid image bounds to ensure consistency
-                pred_boxes = pred[:, :4].clone()
-                pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
-                pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
-            else:
-                pred_boxes = torch.empty((0, 4), device=self.device)
-
-            preds_list.append(
-                {
-                    "boxes": pred_boxes,
-                    "scores": pred[:, 4] if has_pred else torch.empty(0, device=self.device),
-                    "labels": pred[:, 5].long() if has_pred else torch.empty(0, dtype=torch.long, device=self.device),
-                }
-            )
-
-        metric.update(preds_list, targets_list)
+        return pred_boxes, pred[:, 4], pred[:, 5].long()
