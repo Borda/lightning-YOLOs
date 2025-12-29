@@ -98,22 +98,7 @@ class BaseLitYOLO(pl.LightningModule):
                 yaml.dump(cfg, f)
                 temp_yaml = f.name
             try:
-                new_yolo = YOLO(temp_yaml)
-                if model_name.endswith(".pt"):
-                    # Transfer weights from pretrained model
-                    pretrained_dict = yolo.model.state_dict()
-                    new_dict = new_yolo.model.state_dict()
-
-                    # Filter out mismatched shapes (head layers)
-                    pretrained_dict = {
-                        k: v for k, v in pretrained_dict.items() if k in new_dict and v.shape == new_dict[k].shape
-                    }
-
-                    new_dict.update(pretrained_dict)
-                    new_yolo.model.load_state_dict(new_dict)
-                    logger.info(f"Transferred weights from {model_name}")
-
-                yolo = new_yolo
+                yolo = YOLO(temp_yaml)
             finally:
                 Path(temp_yaml).unlink(missing_ok=True)
             logger.info(f"Rebuilt model: {model_nc} -> {num_classes} classes")
