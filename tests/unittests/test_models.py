@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from lit_yolo.models import BaseLitYOLO, LitYOLODet, LitYOLOOBB
+from lit_yolo.models import LitYOLODet, LitYOLOOBB
 
 
 class TestLitYOLOOBBProcessMethods:
@@ -72,7 +72,8 @@ class TestLitYOLOOBBProcessMethods:
         assert labels.dtype == torch.long
 
     def test_process_pred_boxes_single_prediction(self, obb_model):
-        """Test _process_pred_boxes processes single OBB prediction correctly."""
+        """Test _process_pred_boxes processes single OBB prediction
+        correctly."""
         # Prediction in pixel coordinates: xywhr (center, size, angle), conf, cls
         pred = torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]])
         boxes, scores, labels = obb_model._process_pred_boxes(pred)
@@ -245,8 +246,8 @@ class TestLitYOLODetProcessMethods:
 class TestUpdateMetricsLogic:
     """Tests for _update_metrics method behavior.
 
-    These tests verify that the base class metric update logic correctly handles
-    batch processing and formatting for torchmetrics.
+    These tests verify that the base class metric update logic correctly
+    handles batch processing and formatting for torchmetrics.
     """
 
     @pytest.fixture
@@ -319,7 +320,8 @@ class TestUpdateMetricsLogic:
         assert labels.dtype == torch.long
 
     def test_empty_predictions_create_correct_format_det(self, det_model):
-        """Test that empty predictions are formatted correctly for detection."""
+        """Test that empty predictions are formatted correctly for
+        detection."""
         # When NMS returns None or empty predictions, we should create empty tensors
         empty_pred = torch.empty((0, 6))
         boxes, scores, labels = det_model._process_pred_boxes(empty_pred)
