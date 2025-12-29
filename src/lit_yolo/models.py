@@ -179,16 +179,18 @@ class BaseLitYOLO(pl.LightningModule):
                     # For training, we need to run inference to get proper predictions for NMS
                     # This adds overhead but ensures correct metrics
                     with torch.no_grad():
+                        prev_training = self.model.training
                         self.model.eval()
-                        preds_eval = self.model(batch["img"])
-                        self.model.train()
-                        self._update_metrics(preds_eval, batch_dev, metric)
+                        try:
+                            preds_eval = self.model(batch["img"])
+                            self._update_metrics(preds_eval, batch_dev, metric)
+                        finally:
+                            if prev_training:
+                                self.model.train()
                 else:
                     self._update_metrics(preds, batch_dev, metric)
             except Exception as e:
                 logger.warning(f"{stage} metrics failed: {e}")
-                if stage == "train":
-                    self.model.train()
 
         return total
 
@@ -230,7 +232,7 @@ class BaseLitYOLO(pl.LightningModule):
         for i, pred in enumerate(nms_preds):
             mask = batch["batch_idx"] == i
             # Extract ground truth for this image
-            # Note: batch["bboxes"] shape is preserved even if mask is empty
+            # Note: returns an empty tensor with correct shape when mask is empty
             gt_box = batch["bboxes"][mask]
             gt_cls = batch["cls"][mask].squeeze(-1)
 
