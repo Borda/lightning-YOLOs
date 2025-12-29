@@ -76,6 +76,14 @@ class BaseLitYOLO(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
+        # Assign init arguments to instance attributes to mark them as used
+        self.model_name = model_name
+        self.num_classes = num_classes
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.warmup_epochs = warmup_epochs
+        self.img_size = img_size
+
         yolo = YOLO(model_name)
         model_nc = yolo.model.yaml.get("nc", num_classes)
 
@@ -174,7 +182,7 @@ class BaseLitYOLO(pl.LightningModule):
             f"{stage}/loss", total, prog_bar=True, on_step=(stage == "train"), on_epoch=True, sync_dist=(stage == "val")
         )
         self.log_dict(
-            {f"{stage}/box": items[0], f"{stage}/cls": items[1], f"{stage}/dfl": items[2]},
+            {f"{stage}/loss_box": items[0], f"{stage}/loss_cls": items[1], f"{stage}/loss_dfl": items[2]},
             on_epoch=True,
             sync_dist=(stage == "val"),
         )
@@ -234,25 +242,25 @@ class BaseLitYOLO(pl.LightningModule):
 
         optimizer = torch.optim.AdamW(
             [
-                {"params": decay, "weight_decay": self.hparams.weight_decay},
+                {"params": decay, "weight_decay": self.weight_decay},
                 {"params": no_decay, "weight_decay": 0.0},
             ],
-            lr=self.hparams.lr,
+            lr=self.lr,
         )
 
         # Use trainer max_epochs if available, otherwise fall back to a default
         max_epochs = getattr(getattr(self, "trainer", None), "max_epochs", 100)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=max(1, max_epochs - self.hparams.warmup_epochs), eta_min=self.hparams.lr * 0.01
+            optimizer, T_max=max(1, max_epochs - self.warmup_epochs), eta_min=self.lr * 0.01
         )
         return {"optimizer": optimizer, "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"}}
 
     def on_train_epoch_start(self):
         """Handle learning rate warmup."""
-        if self.current_epoch < self.hparams.warmup_epochs:
-            factor = (self.current_epoch + 1) / self.hparams.warmup_epochs
+        if self.current_epoch < self.warmup_epochs:
+            factor = (self.current_epoch + 1) / self.warmup_epochs
             for pg in self.optimizers().param_groups:
-                pg["lr"] = self.hparams.lr * factor
+                pg["lr"] = self.lr * factor
 
 
 class LitYOLOOBB(BaseLitYOLO):
@@ -285,7 +293,7 @@ class LitYOLOOBB(BaseLitYOLO):
         nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=True)
 
         preds_list, targets_list = [], []
-        img_size = self.hparams.img_size
+        img_size = self.img_size
 
         for i, pred in enumerate(nms_preds):
             mask = batch["batch_idx"] == i
@@ -350,7 +358,7 @@ class LitYOLODet(BaseLitYOLO):
         nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=False)
 
         preds_list, targets_list = [], []
-        img_size = self.hparams.img_size
+        img_size = self.img_size
 
         for i, pred in enumerate(nms_preds):
             mask = batch["batch_idx"] == i

@@ -34,15 +34,15 @@ ______________________________________________________________________
 ## ✨ Features
 
 | Feature                   | Description                                                                           | Status |
-|---------------------------| ------------------------------------------------------------------------------------- | ------ |
+| ------------------------- | ------------------------------------------------------------------------------------- | ------ |
 | **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                      | ✅     |
 | **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects              | ✅     |
 | **📊 Advanced Metrics**   | TorchMetrics mAP calculation for both training and validation                         | ✅     |
-| **⚡ Mixed Precision**     | Various Precisions and Training strategies with PyTorch Lightning for faster training | ✅     |
+| **⚡ Mixed Precision**    | Various Precisions and Training strategies with PyTorch Lightning for faster training | ✅     |
 | **🔧 Auto Configuration** | Automatic class detection from dataset                                                | ✅     |
-| **🏗️ Modular Design**    | Clean, extensible architecture with PyTorch Lightning                                 | ✅     |
+| **🏗️ Modular Design**     | Clean, extensible architecture with PyTorch Lightning                                 | ✅     |
 | **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                                      | ✅     |
-| **👁️ Visualization**     | Dataset visualization tools with bounding box annotations                             | ✅     |
+| **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                             | ✅     |
 
 ______________________________________________________________________
 
@@ -102,6 +102,18 @@ For aerial imagery or rotated objects:
 lit-yolo train obb --data /path/to/data --model yolo11n-obb.pt
 ```
 
+### 👁️ Visualize Your Dataset
+
+Preview your data before training:
+
+```bash
+# Visualize and save to file
+lit-yolo show dataset --data /path/to/dataset --output preview.jpg
+
+# Interactive visualization
+lit-yolo show dataset --data /path/to/dataset
+```
+
 ### 🧪 Test with Synthetic Data
 
 Perfect for learning and validating your setup:
@@ -114,17 +126,7 @@ lit-yolo create dataset --output ./test_data --num_samples 100
 lit-yolo train detect --data ./test_data --model yolo11n.pt --epochs 10
 ```
 
-### 👁️ Visualize Your Dataset
-
-Preview your data before training:
-
-```bash
-# Visualize and save to file
-lit-yolo show dataset --data /path/to/dataset --output preview.jpg
-
-# Interactive visualization
-lit-yolo show dataset --data /path/to/dataset
-```
+![Training on Synthetic Data](.assets/synth-train.png)
 
 ______________________________________________________________________
 
