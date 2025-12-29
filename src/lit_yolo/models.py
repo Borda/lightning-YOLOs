@@ -130,10 +130,9 @@ class BaseLitYOLO(pl.LightningModule):
         # Initialize metrics on the correct device
         if self.train_map is None:
             if TORCHMETRICS_AVAILABLE:
-                # Training metrics disabled to save time and avoid NMS errors on raw outputs
-                self.train_map = None
+                self.train_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
                 self.val_map = MeanAveragePrecision(box_format="xyxy", iou_type="bbox").to(self.device)
-                logger.info("Metrics enabled: val mAP (train mAP disabled)")
+                logger.info("Metrics enabled: train mAP, val mAP")
             else:
                 logger.warning("torchmetrics[detection] not installed, metrics disabled")
 
@@ -176,9 +175,20 @@ class BaseLitYOLO(pl.LightningModule):
         metric = self.train_map if stage == "train" else self.val_map
         if metric is not None:
             try:
-                self._update_metrics(preds, batch_dev, metric)
+                if stage == "train":
+                    # For training, we need to run inference to get proper predictions for NMS
+                    # This adds overhead but ensures correct metrics
+                    with torch.no_grad():
+                        self.model.eval()
+                        preds_eval = self.model(batch["img"])
+                        self.model.train()
+                        self._update_metrics(preds_eval, batch_dev, metric)
+                else:
+                    self._update_metrics(preds, batch_dev, metric)
             except Exception as e:
                 logger.warning(f"{stage} metrics failed: {e}")
+                if stage == "train":
+                    self.model.train()
 
         return total
 
@@ -275,6 +285,10 @@ class LitYOLOOBB(BaseLitYOLO):
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Update metrics with OBB predictions."""
         raw = preds[0] if isinstance(preds, (list, tuple)) else preds
+        # Ensure float32 for NMS to avoid AMP issues
+        if isinstance(raw, torch.Tensor):
+            raw = raw.float()
+
         nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=True)
 
         preds_list, targets_list = [], []
@@ -342,6 +356,10 @@ class LitYOLODet(BaseLitYOLO):
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Update metrics with standard detection predictions."""
         raw = preds[0] if isinstance(preds, (list, tuple)) else preds
+        # Ensure float32 for NMS to avoid AMP issues
+        if isinstance(raw, torch.Tensor):
+            raw = raw.float()
+
         nms_preds = non_max_suppression(raw, conf_thres=0.001, iou_thres=0.7, nc=self.nc, max_det=300, rotated=False)
 
         preds_list, targets_list = [], []
