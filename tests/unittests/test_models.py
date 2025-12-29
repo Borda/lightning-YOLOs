@@ -93,9 +93,9 @@ class TestLitYOLOOBBProcessMethods:
         # Multiple normalized xywhr boxes
         gt_box = torch.tensor(
             [
-                [0.5, 0.5, 0.2, 0.1, 0.0],  # Center box
-                [0.25, 0.25, 0.1, 0.1, 0.0],  # Top-left box
-                [0.75, 0.75, 0.15, 0.15, 0.785],  # Bottom-right rotated box (45 degrees)
+                [0.5, 0.5, 0.2, 0.1, 0.0],  # Center box, no rotation
+                [0.25, 0.25, 0.1, 0.1, 0.0],  # Top-left box, no rotation
+                [0.75, 0.75, 0.15, 0.15, 0.785],  # Bottom-right rotated box (~45 degrees in radians)
             ]
         )
         result = obb_model._process_target_boxes(gt_box)
@@ -142,9 +142,9 @@ class TestLitYOLOOBBProcessMethods:
         # Multiple predictions
         pred = torch.tensor(
             [
-                [320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0],
-                [100.0, 100.0, 80.0, 60.0, 0.0, 0.85, 0.0],
-                [500.0, 500.0, 120.0, 80.0, 0.785, 0.75, 5.0],
+                [320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0],  # No rotation
+                [100.0, 100.0, 80.0, 60.0, 0.0, 0.85, 0.0],  # No rotation
+                [500.0, 500.0, 120.0, 80.0, 0.785, 0.75, 5.0],  # Rotated ~45 degrees in radians
             ]
         )
         boxes, scores, labels = obb_model._process_pred_boxes(pred)
