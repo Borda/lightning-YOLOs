@@ -1,5 +1,7 @@
 """Unit tests for lit_yolo.models module."""
 
+from unittest.mock import patch
+
 import pytest
 import torch
 
@@ -247,7 +249,8 @@ class TestUpdateMetricsLogic:
     """Tests for _update_metrics method behavior.
 
     These tests verify that the base class metric update logic correctly
-    handles batch processing and formatting for torchmetrics.
+    handles batch processing and formatting for torchmetrics, including
+    edge cases with empty predictions and targets.
     """
 
     @pytest.fixture
@@ -266,68 +269,160 @@ class TestUpdateMetricsLogic:
         model.setup(stage="fit")
         return model
 
-    def test_process_empty_tensors_obb(self, obb_model):
-        """Test that OBB model processes empty target tensors without error."""
-        # Test that empty ground truth boxes are handled correctly
-        gt_box_empty = torch.empty((0, 5))
-        result = obb_model._process_target_boxes(gt_box_empty)
-        assert result.shape == (0, 4)
+    @patch("lit_yolo.models.non_max_suppression")
+    def test_update_metrics_with_empty_predictions_obb(self, mock_nms, obb_model):
+        """Test _update_metrics handles batches where NMS returns empty predictions."""
+        # Mock NMS to return empty predictions for all images in batch
+        mock_nms.return_value = [
+            torch.empty((0, 7)),  # Image 0: no predictions
+            torch.empty((0, 7)),  # Image 1: no predictions
+        ]
 
-        # Simulate batch processing where masking by batch_idx yields no targets
+        # Create batch with targets
         batch = {
-            "batch_idx": torch.tensor([1, 1]),  # Only image 1 has targets, image 0 is empty
+            "batch_idx": torch.tensor([0, 0, 1]),
+            "bboxes": torch.tensor(
+                [[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0], [0.7, 0.7, 0.15, 0.15, 0.0]]
+            ),
+            "cls": torch.tensor([[0], [1], [2]]),
+        }
+
+        # Create mock predictions (raw model output)
+        preds = torch.zeros((2, 10 + 5, 100))  # batch_size=2, (nc + 5) channels, detections
+
+        # This should not raise an error
+        obb_model._update_metrics(preds, batch, obb_model.train_map)
+
+        # Verify NMS was called with correct parameters
+        mock_nms.assert_called_once()
+        call_kwargs = mock_nms.call_args[1]
+        assert call_kwargs["rotated"] is True
+        assert call_kwargs["nc"] == 10
+
+    @patch("lit_yolo.models.non_max_suppression")
+    def test_update_metrics_with_empty_targets_obb(self, mock_nms, obb_model):
+        """Test _update_metrics handles batches with no ground truth targets."""
+        # Mock NMS to return predictions
+        mock_nms.return_value = [
+            torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]]),  # Image 0: one prediction
+            torch.tensor([[100.0, 100.0, 80.0, 60.0, 0.0, 0.85, 0.0]]),  # Image 1: one prediction
+        ]
+
+        # Create batch with NO targets
+        batch = {
+            "batch_idx": torch.empty(0, dtype=torch.long),
+            "bboxes": torch.empty((0, 5)),
+            "cls": torch.empty((0, 1)),
+        }
+
+        # Create mock predictions
+        preds = torch.zeros((2, 10 + 5, 100))
+
+        # This should not raise an error
+        obb_model._update_metrics(preds, batch, obb_model.train_map)
+
+        # Verify NMS was called
+        mock_nms.assert_called_once()
+
+    @patch("lit_yolo.models.non_max_suppression")
+    def test_update_metrics_with_mixed_batch_obb(self, mock_nms, obb_model):
+        """Test _update_metrics handles batches where some images have no targets."""
+        # Mock NMS to return predictions for both images
+        mock_nms.return_value = [
+            torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]]),  # Image 0: one prediction
+            torch.tensor([[100.0, 100.0, 80.0, 60.0, 0.0, 0.85, 0.0]]),  # Image 1: one prediction
+        ]
+
+        # Create batch where only image 1 has targets (image 0 is empty)
+        batch = {
+            "batch_idx": torch.tensor([1, 1]),  # Only image 1 has targets
             "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
             "cls": torch.tensor([[0], [1]]),
         }
 
-        # For image 0, mask will be empty, producing an empty tensor of boxes
-        mask = batch["batch_idx"] == 0
-        gt_box = batch["bboxes"][mask]
-        assert len(gt_box) == 0
-        result = obb_model._process_target_boxes(gt_box)
-        assert result.shape == (0, 4)
+        # Create mock predictions
+        preds = torch.zeros((2, 10 + 5, 100))
 
-    def test_process_empty_tensors_det(self, det_model):
-        """Test that detection model processes empty target tensors without
-        error."""
-        # Test that empty ground truth boxes are handled correctly
-        gt_box_empty = torch.empty((0, 4))
-        result = det_model._process_target_boxes(gt_box_empty)
-        assert result.shape == (0, 4)
+        # This should not raise an error
+        obb_model._update_metrics(preds, batch, obb_model.train_map)
 
-        # Simulate batch processing where masking by batch_idx yields no targets
+        # Verify NMS was called
+        mock_nms.assert_called_once()
+
+    @patch("lit_yolo.models.non_max_suppression")
+    def test_update_metrics_with_empty_predictions_det(self, mock_nms, det_model):
+        """Test _update_metrics handles batches where NMS returns empty predictions."""
+        # Mock NMS to return empty predictions
+        mock_nms.return_value = [
+            torch.empty((0, 6)),  # Image 0: no predictions
+            torch.empty((0, 6)),  # Image 1: no predictions
+        ]
+
+        # Create batch with targets
         batch = {
-            "batch_idx": torch.tensor([1, 1]),  # Only image 1 has targets, image 0 is empty
+            "batch_idx": torch.tensor([0, 0, 1]),
+            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1], [0.3, 0.3, 0.1, 0.1], [0.7, 0.7, 0.15, 0.15]]),
+            "cls": torch.tensor([[0], [1], [2]]),
+        }
+
+        # Create mock predictions
+        preds = torch.zeros((2, 80 + 4, 100))  # batch_size=2, (nc + 4) channels, detections
+
+        # This should not raise an error
+        det_model._update_metrics(preds, batch, det_model.train_map)
+
+        # Verify NMS was called with correct parameters
+        mock_nms.assert_called_once()
+        call_kwargs = mock_nms.call_args[1]
+        assert call_kwargs["rotated"] is False
+        assert call_kwargs["nc"] == 80
+
+    @patch("lit_yolo.models.non_max_suppression")
+    def test_update_metrics_with_empty_targets_det(self, mock_nms, det_model):
+        """Test _update_metrics handles batches with no ground truth targets."""
+        # Mock NMS to return predictions
+        mock_nms.return_value = [
+            torch.tensor([[100.0, 100.0, 300.0, 250.0, 0.95, 2.0]]),  # Image 0: one prediction
+            torch.tensor([[50.0, 50.0, 150.0, 120.0, 0.85, 0.0]]),  # Image 1: one prediction
+        ]
+
+        # Create batch with NO targets
+        batch = {
+            "batch_idx": torch.empty(0, dtype=torch.long),
+            "bboxes": torch.empty((0, 4)),
+            "cls": torch.empty((0, 1)),
+        }
+
+        # Create mock predictions
+        preds = torch.zeros((2, 80 + 4, 100))
+
+        # This should not raise an error
+        det_model._update_metrics(preds, batch, det_model.train_map)
+
+        # Verify NMS was called
+        mock_nms.assert_called_once()
+
+    @patch("lit_yolo.models.non_max_suppression")
+    def test_update_metrics_with_mixed_batch_det(self, mock_nms, det_model):
+        """Test _update_metrics handles batches where some images have no targets."""
+        # Mock NMS to return predictions for both images
+        mock_nms.return_value = [
+            torch.tensor([[100.0, 100.0, 300.0, 250.0, 0.95, 2.0]]),  # Image 0: one prediction
+            torch.tensor([[50.0, 50.0, 150.0, 120.0, 0.85, 0.0]]),  # Image 1: one prediction
+        ]
+
+        # Create batch where only image 1 has targets (image 0 is empty)
+        batch = {
+            "batch_idx": torch.tensor([1, 1]),  # Only image 1 has targets
             "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1], [0.3, 0.3, 0.1, 0.1]]),
             "cls": torch.tensor([[0], [1]]),
         }
 
-        # For image 0, mask will be empty, producing an empty tensor of boxes
-        mask = batch["batch_idx"] == 0
-        gt_box = batch["bboxes"][mask]
-        assert len(gt_box) == 0
-        result = det_model._process_target_boxes(gt_box)
-        assert result.shape == (0, 4)
+        # Create mock predictions
+        preds = torch.zeros((2, 80 + 4, 100))
 
-    def test_empty_predictions_create_correct_format_obb(self, obb_model):
-        """Test that empty predictions are formatted correctly for OBB."""
-        # When NMS returns None or empty predictions, we should create empty tensors
-        empty_pred = torch.empty((0, 7))
-        boxes, scores, labels = obb_model._process_pred_boxes(empty_pred)
+        # This should not raise an error
+        det_model._update_metrics(preds, batch, det_model.train_map)
 
-        assert boxes.shape == (0, 4)
-        assert scores.shape == (0,)
-        assert labels.shape == (0,)
-        assert labels.dtype == torch.long
-
-    def test_empty_predictions_create_correct_format_det(self, det_model):
-        """Test that empty predictions are formatted correctly for
-        detection."""
-        # When NMS returns None or empty predictions, we should create empty tensors
-        empty_pred = torch.empty((0, 6))
-        boxes, scores, labels = det_model._process_pred_boxes(empty_pred)
-
-        assert boxes.shape == (0, 4)
-        assert scores.shape == (0,)
-        assert labels.shape == (0,)
-        assert labels.dtype == torch.long
+        # Verify NMS was called
+        mock_nms.assert_called_once()
