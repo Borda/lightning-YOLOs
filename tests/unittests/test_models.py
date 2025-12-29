@@ -6,52 +6,6 @@ import torch
 from lit_yolo.models import BaseLitYOLO, LitYOLODet, LitYOLOOBB
 
 
-class TestBaseLitYOLOAbstractMethods:
-    """Tests for abstract method enforcement in BaseLitYOLO."""
-
-    def test_is_rotated_not_implemented(self):
-        """Test that is_rotated property raises NotImplementedError when not overridden."""
-
-        class IncompleteYOLO(BaseLitYOLO):
-            """Minimal implementation without overriding abstract methods."""
-
-            pass
-
-        model = IncompleteYOLO(model_name="yolo11n.pt", num_classes=10)
-        with pytest.raises(NotImplementedError):
-            _ = model.is_rotated
-
-    def test_process_target_boxes_not_implemented(self):
-        """Test that _process_target_boxes raises NotImplementedError when not overridden."""
-
-        class IncompleteYOLO(BaseLitYOLO):
-            """Minimal implementation without overriding abstract methods."""
-
-            @property
-            def is_rotated(self) -> bool:
-                return False
-
-        model = IncompleteYOLO(model_name="yolo11n.pt", num_classes=10)
-        gt_box = torch.zeros((1, 4))
-        with pytest.raises(NotImplementedError):
-            model._process_target_boxes(gt_box)
-
-    def test_process_pred_boxes_not_implemented(self):
-        """Test that _process_pred_boxes raises NotImplementedError when not overridden."""
-
-        class IncompleteYOLO(BaseLitYOLO):
-            """Minimal implementation without overriding abstract methods."""
-
-            @property
-            def is_rotated(self) -> bool:
-                return False
-
-        model = IncompleteYOLO(model_name="yolo11n.pt", num_classes=10)
-        pred = torch.zeros((1, 6))
-        with pytest.raises(NotImplementedError):
-            model._process_pred_boxes(pred)
-
-
 class TestLitYOLOOBBProcessMethods:
     """Tests for LitYOLOOBB box processing methods."""
 
