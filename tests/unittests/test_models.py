@@ -7,6 +7,14 @@ import torch
 
 from lit_yolo.models import LitYOLODet, LitYOLOOBB
 
+# Constants for test data dimensions
+# YOLO model output format: (batch_size, num_channels, num_detections)
+# OBB format: num_channels = num_classes + 5 (x, y, w, h, angle)
+# Detection format: num_channels = num_classes + 4 (x, y, w, h)
+OBB_EXTRA_CHANNELS = 5  # xywhr
+DET_EXTRA_CHANNELS = 4  # xywh
+NUM_DETECTIONS = 100  # Typical number of detection candidates
+
 
 class TestLitYOLOOBBProcessMethods:
     """Tests for LitYOLOOBB box processing methods."""
@@ -288,7 +296,8 @@ class TestUpdateMetricsLogic:
         }
 
         # Create mock predictions (raw model output)
-        preds = torch.zeros((2, 10 + 5, 100))  # batch_size=2, (nc + 5) channels, detections
+        # Format: (batch_size, num_classes + extra_channels, num_detections)
+        preds = torch.zeros((2, obb_model.nc + OBB_EXTRA_CHANNELS, NUM_DETECTIONS))
 
         # This should not raise an error
         obb_model._update_metrics(preds, batch, obb_model.train_map)
@@ -316,7 +325,8 @@ class TestUpdateMetricsLogic:
         }
 
         # Create mock predictions
-        preds = torch.zeros((2, 10 + 5, 100))
+        # Format: (batch_size, num_classes + extra_channels, num_detections)
+        preds = torch.zeros((2, obb_model.nc + OBB_EXTRA_CHANNELS, NUM_DETECTIONS))
 
         # This should not raise an error
         obb_model._update_metrics(preds, batch, obb_model.train_map)
@@ -341,7 +351,8 @@ class TestUpdateMetricsLogic:
         }
 
         # Create mock predictions
-        preds = torch.zeros((2, 10 + 5, 100))
+        # Format: (batch_size, num_classes + extra_channels, num_detections)
+        preds = torch.zeros((2, obb_model.nc + OBB_EXTRA_CHANNELS, NUM_DETECTIONS))
 
         # This should not raise an error
         obb_model._update_metrics(preds, batch, obb_model.train_map)
@@ -366,7 +377,8 @@ class TestUpdateMetricsLogic:
         }
 
         # Create mock predictions
-        preds = torch.zeros((2, 80 + 4, 100))  # batch_size=2, (nc + 4) channels, detections
+        # Format: (batch_size, num_classes + extra_channels, num_detections)
+        preds = torch.zeros((2, det_model.nc + DET_EXTRA_CHANNELS, NUM_DETECTIONS))
 
         # This should not raise an error
         det_model._update_metrics(preds, batch, det_model.train_map)
@@ -394,7 +406,8 @@ class TestUpdateMetricsLogic:
         }
 
         # Create mock predictions
-        preds = torch.zeros((2, 80 + 4, 100))
+        # Format: (batch_size, num_classes + extra_channels, num_detections)
+        preds = torch.zeros((2, det_model.nc + DET_EXTRA_CHANNELS, NUM_DETECTIONS))
 
         # This should not raise an error
         det_model._update_metrics(preds, batch, det_model.train_map)
@@ -419,7 +432,8 @@ class TestUpdateMetricsLogic:
         }
 
         # Create mock predictions
-        preds = torch.zeros((2, 80 + 4, 100))
+        # Format: (batch_size, num_classes + extra_channels, num_detections)
+        preds = torch.zeros((2, det_model.nc + DET_EXTRA_CHANNELS, NUM_DETECTIONS))
 
         # This should not raise an error
         det_model._update_metrics(preds, batch, det_model.train_map)
