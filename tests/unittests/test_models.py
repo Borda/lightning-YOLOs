@@ -49,7 +49,7 @@ class TestLitYOLOOBBProcessMethods:
             [
                 [0.5, 0.5, 0.2, 0.1, 0.0],  # Center box, no rotation
                 [0.25, 0.25, 0.1, 0.1, 0.0],  # Top-left box, no rotation
-                [0.75, 0.75, 0.15, 0.15, 0.785],  # Bottom-right rotated box (~45 degrees in radians)
+                [0.75, 0.75, 0.15, 0.15, 0.785],  # Bottom-right rotated box (π/4 radians ≈ 45 degrees)
             ]
         )
         result = obb_model._process_target_boxes(gt_box)
@@ -72,8 +72,7 @@ class TestLitYOLOOBBProcessMethods:
         assert labels.dtype == torch.long
 
     def test_process_pred_boxes_single_prediction(self, obb_model):
-        """Test _process_pred_boxes processes single OBB prediction
-        correctly."""
+        """Test _process_pred_boxes processes single OBB prediction correctly."""
         # Prediction in pixel coordinates: xywhr (center, size, angle), conf, cls
         pred = torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]])
         boxes, scores, labels = obb_model._process_pred_boxes(pred)
@@ -99,7 +98,7 @@ class TestLitYOLOOBBProcessMethods:
             [
                 [320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0],  # No rotation
                 [100.0, 100.0, 80.0, 60.0, 0.0, 0.85, 0.0],  # No rotation
-                [500.0, 500.0, 120.0, 80.0, 0.785, 0.75, 5.0],  # Rotated ~45 degrees in radians
+                [500.0, 500.0, 120.0, 80.0, 0.785, 0.75, 5.0],  # Rotated π/4 radians (~45 degrees)
             ]
         )
         boxes, scores, labels = obb_model._process_pred_boxes(pred)
@@ -266,42 +265,42 @@ class TestUpdateMetricsLogic:
         model.setup(stage="fit")
         return model
 
-    def test_process_empty_batch_obb(self, obb_model):
-        """Test that OBB model handles empty batch indices correctly."""
+    def test_process_empty_tensors_obb(self, obb_model):
+        """Test that OBB model processes empty target tensors without error."""
         # Test that empty ground truth boxes are handled correctly
         gt_box_empty = torch.empty((0, 5))
         result = obb_model._process_target_boxes(gt_box_empty)
         assert result.shape == (0, 4)
 
-        # Simulate batch processing with empty targets for an image
+        # Simulate batch processing where masking by batch_idx yields no targets
         batch = {
             "batch_idx": torch.tensor([1, 1]),  # Only image 1 has targets, image 0 is empty
             "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
             "cls": torch.tensor([[0], [1]]),
         }
 
-        # For image 0, mask will be empty
+        # For image 0, mask will be empty, producing an empty tensor of boxes
         mask = batch["batch_idx"] == 0
         gt_box = batch["bboxes"][mask]
         assert len(gt_box) == 0
         result = obb_model._process_target_boxes(gt_box)
         assert result.shape == (0, 4)
 
-    def test_process_empty_batch_det(self, det_model):
-        """Test that detection model handles empty batch indices correctly."""
+    def test_process_empty_tensors_det(self, det_model):
+        """Test that detection model processes empty target tensors without error."""
         # Test that empty ground truth boxes are handled correctly
         gt_box_empty = torch.empty((0, 4))
         result = det_model._process_target_boxes(gt_box_empty)
         assert result.shape == (0, 4)
 
-        # Simulate batch processing with empty targets for an image
+        # Simulate batch processing where masking by batch_idx yields no targets
         batch = {
             "batch_idx": torch.tensor([1, 1]),  # Only image 1 has targets, image 0 is empty
             "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1], [0.3, 0.3, 0.1, 0.1]]),
             "cls": torch.tensor([[0], [1]]),
         }
 
-        # For image 0, mask will be empty
+        # For image 0, mask will be empty, producing an empty tensor of boxes
         mask = batch["batch_idx"] == 0
         gt_box = batch["bboxes"][mask]
         assert len(gt_box) == 0
@@ -320,8 +319,7 @@ class TestUpdateMetricsLogic:
         assert labels.dtype == torch.long
 
     def test_empty_predictions_create_correct_format_det(self, det_model):
-        """Test that empty predictions are formatted correctly for
-        detection."""
+        """Test that empty predictions are formatted correctly for detection."""
         # When NMS returns None or empty predictions, we should create empty tensors
         empty_pred = torch.empty((0, 6))
         boxes, scores, labels = det_model._process_pred_boxes(empty_pred)
