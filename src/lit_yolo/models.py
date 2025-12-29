@@ -285,7 +285,7 @@ class LitYOLOOBB(BaseLitYOLO):
             gt_cls = batch["cls"][mask].squeeze(-1) if mask.sum() else torch.empty(0, device=self.device)
             gt_box = batch["bboxes"][mask] if mask.sum() else torch.empty((0, 5), device=self.device)
 
-            # Ground truth: Convert from normalized [0,1] xywhr to pixel [0,img_size] xyxy
+            # Ground truth: Convert from normalized [0,1] xywhr to pixel coordinates xyxy
             targets_list.append(
                 {
                     "boxes": obb_to_xyxy(gt_box, img_size) if len(gt_box) else torch.empty((0, 4), device=self.device),
@@ -295,7 +295,7 @@ class LitYOLOOBB(BaseLitYOLO):
 
             has_pred = pred is not None and len(pred)
             if has_pred:
-                # NMS returns OBB predictions in pixel coordinates [0, img_size] in xywhr format
+                # NMS returns OBB predictions in pixel coordinates in xywhr format
                 # Convert to xyxy (no scaling needed as already in pixels) and clamp to valid bounds
                 pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
                 pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
@@ -352,7 +352,7 @@ class LitYOLODet(BaseLitYOLO):
             gt_cls = batch["cls"][mask].squeeze(-1) if mask.sum() else torch.empty(0, device=self.device)
             gt_box = batch["bboxes"][mask] if mask.sum() else torch.empty((0, 4), device=self.device)
 
-            # Ground truth: Convert from normalized [0,1] xywh to pixel [0,img_size] xyxy
+            # Ground truth: Convert from normalized [0,1] xywh to pixel coordinates xyxy
             targets_list.append(
                 {
                     "boxes": xywh_to_xyxy(gt_box, img_size) if len(gt_box) else torch.empty((0, 4), device=self.device),
@@ -362,7 +362,7 @@ class LitYOLODet(BaseLitYOLO):
 
             has_pred = pred is not None and len(pred)
             if has_pred:
-                # NMS returns predictions in pixel coordinates [0, img_size] in xyxy format
+                # NMS returns predictions in pixel coordinates in xyxy format
                 # Clamp to valid image bounds to ensure consistency
                 pred_boxes = pred[:, :4].clone()
                 pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
