@@ -295,7 +295,7 @@ class LitYOLOOBB(BaseLitYOLO):
             has_pred = pred is not None and len(pred)
             if has_pred:
                 # Convert OBB to xyxy and clamp to valid image bounds [0, img_size]
-                pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
+                pred_boxes = obb_to_xyxy(pred[:, :5], scale=img_size)
                 pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, img_size)  # x1, x2
                 pred_boxes[:, [1, 3]] = pred_boxes[:, [1, 3]].clamp(0, img_size)  # y1, y2
             else:
