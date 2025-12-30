@@ -37,9 +37,9 @@ ______________________________________________________________________
 | ------------------------- | ------------------------------------------------------------------------------------- | ------ |
 | **🎯 Standard Detection** | Classic axis-aligned bounding boxes for general object detection                      | ✅     |
 | **🔄 OBB Detection**      | Rotated bounding boxes for aerial/satellite imagery and oriented objects              | ✅     |
-| **📊 Advanced Metrics**   | TorchMetrics mAP calculation for both training and validation                         | ✅     |
+| **📊 MAP Metrics**        | TorchMetrics mAP calculation for both training and validation                         | ✅     |
 | **⚡ Mixed Precision**    | Various Precisions and Training strategies with PyTorch Lightning for faster training | ✅     |
-| **🔧 Auto Configuration** | Automatic class detection from dataset                                                | ✅     |
+| **🔧 Auto Config.**       | Automatic class detection from dataset                                                | ✅     |
 | **🏗️ Modular Design**     | Clean, extensible architecture with PyTorch Lightning                                 | ✅     |
 | **🧪 Synthetic Data**     | Built-in synthetic dataset generator for testing                                      | ✅     |
 | **👁️ Visualization**      | Dataset visualization tools with bounding box annotations                             | ✅     |
@@ -49,16 +49,24 @@ ______________________________________________________________________
 ## 📦 Installation
 
 ```bash
-# Create a virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
 # Quick install
 pip install .
 
 # Development install with all tools
 pip install -e ".[dev]"
+```
 
+<details>
+  <summary>Install from source (click to expand)</summary>
+
+```bash
+# Development install with all tools
+pip install https://github.com/Borda/lightning-YOLOs/archive/refs/heads/main.zip
+```
+
+</details>
+
+```bash
 # Verify installation
 lit-yolo --help
 ```
