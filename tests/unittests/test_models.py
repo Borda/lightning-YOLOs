@@ -641,8 +641,8 @@ class TestTrainingMAPComputation:
         # The validation path should not trigger train() or eval() calls since it's already in eval mode
 
 
-class TestMetricUpdateLogic:
-    """Tests for the _update_metrics method."""
+class TestMetricUpdateCalls:
+    """Tests that _update_metrics is triggered in the appropriate code paths."""
 
     def test_update_metrics_called_during_training(self):
         """Test that _update_metrics is called during training step."""
