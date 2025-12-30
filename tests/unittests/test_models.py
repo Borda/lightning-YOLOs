@@ -450,7 +450,24 @@ class TestTrainingMAPComputation:
     """Tests for the training mAP computation logic that switches model
     mode."""
 
-    def test_model_state_restored_after_metric_computation(self):
+    @pytest.fixture
+    def obb_model_with_metrics(self):
+        """Create and setup a LitYOLOOBB model with 2 classes for testing."""
+        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
+        model.setup()
+        return model
+
+    @pytest.fixture
+    def mock_batch(self):
+        """Create a mock batch with valid data for testing."""
+        return {
+            "img": torch.randn(2, 3, 640, 640),
+            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
+            "cls": torch.tensor([[0], [1]]),
+            "batch_idx": torch.tensor([0, 1]),
+        }
+
+    def test_model_state_restored_after_metric_computation(self, obb_model_with_metrics, mock_batch):
         """Test that model training state is correctly restored after metric
         computation.
 
@@ -458,19 +475,8 @@ class TestTrainingMAPComputation:
         1. The model is temporarily switched to eval mode
         2. The original training state is correctly restored after computation
         """
-        # Create a minimal model
-        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
-
-        # Setup model to initialize device and metrics
-        model.setup()
-
-        # Create mock batch with valid data
-        batch = {
-            "img": torch.randn(2, 3, 640, 640),
-            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
-            "cls": torch.tensor([[0], [1]]),
-            "batch_idx": torch.tensor([0, 1]),
-        }
+        model = obb_model_with_metrics
+        batch = mock_batch
 
         # Set model to training mode
         model.model.train()
@@ -502,7 +508,7 @@ class TestTrainingMAPComputation:
         assert len(training_states) >= 2, "Should have at least 2 forward passes"
         assert False in training_states, "Model should have been in eval mode at some point"
 
-    def test_model_state_restored_when_metric_computation_fails(self):
+    def test_model_state_restored_when_metric_computation_fails(self, obb_model_with_metrics, mock_batch):
         """Test that model state is restored even when metric computation
         fails.
 
@@ -510,18 +516,8 @@ class TestTrainingMAPComputation:
         the model state even if an exception occurs during metric
         computation.
         """
-        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
-
-        # Setup model
-        model.setup()
-
-        # Create mock batch
-        batch = {
-            "img": torch.randn(2, 3, 640, 640),
-            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
-            "cls": torch.tensor([[0], [1]]),
-            "batch_idx": torch.tensor([0, 1]),
-        }
+        model = obb_model_with_metrics
+        batch = mock_batch
 
         # Set model to training mode
         model.model.train()
@@ -545,25 +541,15 @@ class TestTrainingMAPComputation:
         assert model.model.training == initial_training_state, "Model state should be restored even after exception"
         assert isinstance(loss, torch.Tensor), "Loss should still be returned"
 
-    def test_model_eval_mode_during_training_metric_computation(self):
+    def test_model_eval_mode_during_training_metric_computation(self, obb_model_with_metrics, mock_batch):
         """Test that model is in eval mode during training metric computation.
 
         This test verifies that the model is temporarily set to eval
         mode when computing metrics during training to get proper
         predictions for NMS.
         """
-        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
-
-        # Setup model
-        model.setup()
-
-        # Create mock batch
-        batch = {
-            "img": torch.randn(2, 3, 640, 640),
-            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
-            "cls": torch.tensor([[0], [1]]),
-            "batch_idx": torch.tensor([0, 1]),
-        }
+        model = obb_model_with_metrics
+        batch = mock_batch
 
         model.model.train()
 
@@ -588,24 +574,14 @@ class TestTrainingMAPComputation:
         # During training, metrics are computed with model in eval mode
         assert False in mode_during_metric_update, "Model should be in eval mode when computing training metrics"
 
-    def test_validation_step_does_not_switch_model_mode(self):
+    def test_validation_step_does_not_switch_model_mode(self, obb_model_with_metrics, mock_batch):
         """Test that validation step does not switch model mode.
 
         During validation, the model is already in eval mode by
         Lightning, so we should not see any mode switching.
         """
-        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
-
-        # Setup model
-        model.setup()
-
-        # Create mock batch
-        batch = {
-            "img": torch.randn(2, 3, 640, 640),
-            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
-            "cls": torch.tensor([[0], [1]]),
-            "batch_idx": torch.tensor([0, 1]),
-        }
+        model = obb_model_with_metrics
+        batch = mock_batch
 
         # Track model mode changes
         mode_changes = []
@@ -638,25 +614,34 @@ class TestTrainingMAPComputation:
         # During validation, we should not see mode switching (no train() or eval() calls)
         # since the model is already in eval mode
         assert isinstance(loss, torch.Tensor), "Loss should be returned"
-        # The validation path should not trigger train() or eval() calls since it's already in eval mode
+        assert len(mode_changes) == 0, "Validation should not switch model mode"
 
 
 class TestMetricUpdateCalls:
     """Tests that _update_metrics is triggered in the appropriate code
     paths."""
 
-    def test_update_metrics_called_during_training(self):
-        """Test that _update_metrics is called during training step."""
+    @pytest.fixture
+    def obb_model_with_metrics(self):
+        """Create and setup a LitYOLOOBB model with 2 classes for testing."""
         model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
         model.setup()
+        return model
 
-        # Create mock batch
-        batch = {
+    @pytest.fixture
+    def mock_batch(self):
+        """Create a mock batch with valid data for testing."""
+        return {
             "img": torch.randn(2, 3, 640, 640),
             "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
             "cls": torch.tensor([[0], [1]]),
             "batch_idx": torch.tensor([0, 1]),
         }
+
+    def test_update_metrics_called_during_training(self, obb_model_with_metrics, mock_batch):
+        """Test that _update_metrics is called during training step."""
+        model = obb_model_with_metrics
+        batch = mock_batch
 
         # Track if _update_metrics was called
         update_called = []
@@ -681,19 +666,28 @@ class TestMetricUpdateCalls:
 class TestErrorHandling:
     """Tests for error handling in metric computation."""
 
-    def test_exception_logged_during_metric_computation(self, caplog):
-        """Test that exceptions during metric computation are logged as
-        warnings."""
+    @pytest.fixture
+    def obb_model_with_metrics(self):
+        """Create and setup a LitYOLOOBB model with 2 classes for testing."""
         model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
         model.setup()
+        return model
 
-        # Create mock batch
-        batch = {
+    @pytest.fixture
+    def mock_batch(self):
+        """Create a mock batch with valid data for testing."""
+        return {
             "img": torch.randn(2, 3, 640, 640),
             "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
             "cls": torch.tensor([[0], [1]]),
             "batch_idx": torch.tensor([0, 1]),
         }
+
+    def test_exception_logged_during_metric_computation(self, obb_model_with_metrics, mock_batch, caplog):
+        """Test that exceptions during metric computation are logged as
+        warnings."""
+        model = obb_model_with_metrics
+        batch = mock_batch
 
         # Mock _update_metrics to raise an exception
         original_update_metrics = model._update_metrics
