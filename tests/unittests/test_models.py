@@ -279,7 +279,8 @@ class TestUpdateMetricsLogic:
 
     @patch("lit_yolo.models.non_max_suppression")
     def test_update_metrics_with_empty_predictions_obb(self, mock_nms, obb_model):
-        """Test _update_metrics handles batches where NMS returns empty predictions."""
+        """Test _update_metrics handles batches where NMS returns empty
+        predictions."""
         # Mock NMS to return empty predictions for all images in batch
         mock_nms.return_value = [
             torch.empty((0, 7)),  # Image 0: no predictions
@@ -289,9 +290,7 @@ class TestUpdateMetricsLogic:
         # Create batch with targets
         batch = {
             "batch_idx": torch.tensor([0, 0, 1]),
-            "bboxes": torch.tensor(
-                [[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0], [0.7, 0.7, 0.15, 0.15, 0.0]]
-            ),
+            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0], [0.7, 0.7, 0.15, 0.15, 0.0]]),
             "cls": torch.tensor([[0], [1], [2]]),
         }
 
@@ -310,7 +309,8 @@ class TestUpdateMetricsLogic:
 
     @patch("lit_yolo.models.non_max_suppression")
     def test_update_metrics_with_empty_targets_obb(self, mock_nms, obb_model):
-        """Test _update_metrics handles batches with no ground truth targets."""
+        """Test _update_metrics handles batches with no ground truth
+        targets."""
         # Mock NMS to return predictions
         mock_nms.return_value = [
             torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]]),  # Image 0: one prediction
@@ -336,7 +336,8 @@ class TestUpdateMetricsLogic:
 
     @patch("lit_yolo.models.non_max_suppression")
     def test_update_metrics_with_mixed_batch_obb(self, mock_nms, obb_model):
-        """Test _update_metrics handles batches where some images have no targets."""
+        """Test _update_metrics handles batches where some images have no
+        targets."""
         # Mock NMS to return predictions for both images
         mock_nms.return_value = [
             torch.tensor([[320.0, 320.0, 100.0, 50.0, 0.0, 0.95, 2.0]]),  # Image 0: one prediction
@@ -362,7 +363,8 @@ class TestUpdateMetricsLogic:
 
     @patch("lit_yolo.models.non_max_suppression")
     def test_update_metrics_with_empty_predictions_det(self, mock_nms, det_model):
-        """Test _update_metrics handles batches where NMS returns empty predictions."""
+        """Test _update_metrics handles batches where NMS returns empty
+        predictions."""
         # Mock NMS to return empty predictions
         mock_nms.return_value = [
             torch.empty((0, 6)),  # Image 0: no predictions
@@ -391,7 +393,8 @@ class TestUpdateMetricsLogic:
 
     @patch("lit_yolo.models.non_max_suppression")
     def test_update_metrics_with_empty_targets_det(self, mock_nms, det_model):
-        """Test _update_metrics handles batches with no ground truth targets."""
+        """Test _update_metrics handles batches with no ground truth
+        targets."""
         # Mock NMS to return predictions
         mock_nms.return_value = [
             torch.tensor([[100.0, 100.0, 300.0, 250.0, 0.95, 2.0]]),  # Image 0: one prediction
@@ -417,7 +420,8 @@ class TestUpdateMetricsLogic:
 
     @patch("lit_yolo.models.non_max_suppression")
     def test_update_metrics_with_mixed_batch_det(self, mock_nms, det_model):
-        """Test _update_metrics handles batches where some images have no targets."""
+        """Test _update_metrics handles batches where some images have no
+        targets."""
         # Mock NMS to return predictions for both images
         mock_nms.return_value = [
             torch.tensor([[100.0, 100.0, 300.0, 250.0, 0.95, 2.0]]),  # Image 0: one prediction
