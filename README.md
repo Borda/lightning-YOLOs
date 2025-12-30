@@ -24,7 +24,7 @@ Lightning-YOLOs is an educational framework for learning how to train YOLO model
 
 - **📚 Educational Focus**: Learn PyTorch Lightning patterns with real-world YOLO models
 - **🧪 Experimentation**: Safe environment to test ideas and learn ML workflows
-- **🎨 Multiple Detection Modes**: Explore both standard bounding boxes and Oriented Bounding Boxes (OBB)
+- **🎨 Dual Detection Modes**: Explore both standard bounding boxes and Oriented Bounding Boxes (OBB)
 - **📊 Modern Practices**: See how to integrate metrics, logging, and testing in ML projects
 - **⚙️ Clean Architecture**: Study modular design with CLI, data modules, and training orchestration
 - **🛠️ Development Workflow**: Experience pre-commit hooks, CI/CD, and code quality tools
@@ -126,7 +126,7 @@ lit-yolo create dataset --output ./test_data --num_samples 100
 lit-yolo train detect --data ./test_data --model yolo11n.pt --epochs 10
 ```
 
-![Training on Synthetic Data](.assets/synth-train.png)
+![Training on Synthetic Data](assets/synth-train.png)
 
 ______________________________________________________________________
 
@@ -249,7 +249,7 @@ lit-yolo create dataset --help
 
 </details>
 
-![Synthetic Data Example](.assets/synth-batch.webp)
+![Synthetic Data Example](assets/synth-batch.webp)
 
 ______________________________________________________________________
 
