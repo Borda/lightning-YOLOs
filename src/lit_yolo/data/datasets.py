@@ -169,7 +169,20 @@ class OBBDataset(BaseDataset):
             return None
 
     def _load_labels(self, path: Path) -> torch.Tensor:
-        """Load OBB labels: class + 8 corner coordinates -> (class, cx, cy, w, h, angle)."""
+        """Load OBB labels from file.
+
+        Supports two formats:
+        1. OBB format (preferred): class + 8 corner coordinates (x1 y1 x2 y2 x3 y3 x4 y4).
+           Converted to (class, cx, cy, w, h, angle).
+        2. Standard detection format: class + 4 bbox coordinates (x y w h).
+           Converted to (class, x, y, w, h, 0.0).
+
+        Args:
+            path: Path to the label file.
+
+        Returns:
+            Tensor of shape (N, 6) with columns [class, cx, cy, w, h, angle].
+        """
         if not path.exists():
             return torch.zeros((0, 6), dtype=torch.float32)
 
@@ -220,7 +233,16 @@ class DetDataset(BaseDataset):
     boxes)."""
 
     def _load_labels(self, path: Path) -> torch.Tensor:
-        """Load standard YOLO format: class x_center y_center width height (normalized)."""
+        """Load standard YOLO detection labels.
+
+        Expected format: class x_center y_center width height (normalized).
+
+        Args:
+            path: Path to the label file.
+
+        Returns:
+            Tensor of shape (N, 5) with columns [class, cx, cy, w, h].
+        """
         if not path.exists():
             return torch.zeros((0, 5), dtype=torch.float32)
 

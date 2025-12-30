@@ -46,7 +46,7 @@ def train_obb(
         gradient_clip_val: Gradient clipping.
         val_check_interval: Validation frequency.
         log_every_n_steps: Logging frequency.
-        save_top_k: Checkpoints to keep.
+        save_top_k: Number of best checkpoints to keep.
         output_dir: Output directory.
         compute_train_map: Whether to compute mAP during training. When enabled (default),
             training mAP requires an additional forward pass in eval mode per batch,
@@ -128,7 +128,7 @@ def train_detect(
         gradient_clip_val: Gradient clipping.
         val_check_interval: Validation frequency.
         log_every_n_steps: Logging frequency.
-        save_top_k: Checkpoints to keep.
+        save_top_k: Number of best checkpoints to keep.
         output_dir: Output directory.
         compute_train_map: Whether to compute mAP during training. When enabled (default),
             training mAP requires an additional forward pass in eval mode per batch,

@@ -82,9 +82,13 @@ class BaseDataModule(LightningDataModule):
         return self._class_names
 
     def setup(self, stage: str | None = None):
-        """Setup datasets.
+        """Setup datasets for training and validation.
 
-        Must be implemented by subclasses.
+        This method should instantiate `self.train_ds` and `self.val_ds`.
+        It is called by PyTorch Lightning before training begins.
+
+        Args:
+            stage: Stage name (e.g., 'fit', 'validate', 'test').
         """
         raise NotImplementedError("Subclasses must implement setup")
 
@@ -114,9 +118,13 @@ class BaseDataModule(LightningDataModule):
         )
 
     def _collate(self, batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for batching.
+        """Collate function for batching samples.
 
-        Must be implemented by subclasses.
+        Args:
+            batch: List of (image, label) tuples from the dataset.
+
+        Returns:
+            Dictionary containing batched images and labels.
         """
         raise NotImplementedError("Subclasses must implement _collate")
 
@@ -292,8 +300,14 @@ class OBBDataModule(BaseDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for OBB batches with 5 bbox parameters (cx, cy, w,
-        h, angle)."""
+        """Collate function for OBB batches.
+
+        Args:
+            batch: List of (image, label) tuples. Labels are (N, 6) tensors [cls, cx, cy, w, h, angle].
+
+        Returns:
+            Batch dictionary with 'bboxes' shape (Total_N, 5) [cx, cy, w, h, angle].
+        """
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):
@@ -339,8 +353,14 @@ class DetDataModule(BaseDataModule):
 
     @staticmethod
     def _collate(batch: list[tuple]) -> dict[str, Any]:
-        """Collate function for standard detection batches with 4 bbox
-        parameters (cx, cy, w, h)."""
+        """Collate function for standard detection batches.
+
+        Args:
+            batch: List of (image, label) tuples. Labels are (N, 5) tensors [cls, cx, cy, w, h].
+
+        Returns:
+            Batch dictionary with 'bboxes' shape (Total_N, 4) [cx, cy, w, h].
+        """
         imgs, batch_idx, cls_list, bbox_list = [], [], [], []
 
         for i, (img, labels) in enumerate(batch):

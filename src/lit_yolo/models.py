@@ -227,11 +227,18 @@ class BaseLitYOLO(pl.LightningModule):
     def _update_metrics(self, preds: Any, batch: dict, metric):
         """Common metric update logic for detection tasks.
 
-        Handles NMS, batch processing, and formatting for torchmetrics.
+        Handles Non-Maximum Suppression (NMS), processes batch predictions, and updates
+        the torchmetrics metric object.
+
+        Args:
+            preds: Raw predictions from the model.
+            batch: Batch dictionary containing ground truth.
+            metric: The torchmetrics object to update (train_map or val_map).
+
         Subclasses must implement:
-            - is_rotated (property)
-            - _process_target_boxes(gt_box)
-            - _process_pred_boxes(pred)
+            - is_rotated (property): Whether model outputs rotated boxes.
+            - _process_target_boxes(gt_box): Convert GT to xyxy format.
+            - _process_pred_boxes(pred): Process NMS output to (boxes, scores, labels).
         """
         raw = preds[0] if isinstance(preds, (list, tuple)) else preds
         # Ensure float32 for NMS to avoid AMP issues
@@ -390,7 +397,14 @@ class LitYOLOOBB(BaseLitYOLO):
         return obb_to_xyxy(gt_box, self.img_size)
 
     def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Process OBB predictions (xywhr, conf, cls) to (xyxy, conf, cls)."""
+        """Process OBB predictions from NMS.
+
+        Args:
+            pred: Tensor of shape (N, 7) containing [x, y, w, h, angle, conf, class].
+
+        Returns:
+            Tuple of (boxes_xyxy, scores, labels).
+        """
         # NMS returns OBB predictions in pixel coordinates in xywhr format
         # Convert to enclosing xyxy (no scaling needed as already in pixels)
         pred_boxes = obb_to_xyxy(pred[:, :5], scale=1.0)
@@ -440,7 +454,14 @@ class LitYOLODet(BaseLitYOLO):
         return xywh_to_xyxy(gt_box, self.img_size)
 
     def _process_pred_boxes(self, pred: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Process detection predictions (xyxy, conf, cls)."""
+        """Process detection predictions from NMS.
+
+        Args:
+            pred: Tensor of shape (N, 6) containing [x1, y1, x2, y2, conf, class].
+
+        Returns:
+            Tuple of (boxes_xyxy, scores, labels).
+        """
         # NMS returns predictions in pixel coordinates in xyxy format
         pred_boxes = pred[:, :4].clone()
         pred_boxes[:, [0, 2]] = pred_boxes[:, [0, 2]].clamp(0, self.img_size)
