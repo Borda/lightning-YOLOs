@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import pytest
 import torch
-from unittest.mock import patch
 
 from lit_yolo.models import LitYOLODet, LitYOLOOBB
 
@@ -448,10 +447,12 @@ class TestUpdateMetricsLogic:
 
 
 class TestTrainingMAPComputation:
-    """Tests for the training mAP computation logic that switches model mode."""
+    """Tests for the training mAP computation logic that switches model
+    mode."""
 
     def test_model_state_restored_after_metric_computation(self):
-        """Test that model training state is correctly restored after metric computation.
+        """Test that model training state is correctly restored after metric
+        computation.
 
         This test verifies that when computing training metrics:
         1. The model is temporarily switched to eval mode
@@ -502,10 +503,12 @@ class TestTrainingMAPComputation:
         assert False in training_states, "Model should have been in eval mode at some point"
 
     def test_model_state_restored_when_metric_computation_fails(self):
-        """Test that model state is restored even when metric computation fails.
+        """Test that model state is restored even when metric computation
+        fails.
 
-        This test verifies that the try/finally block correctly restores the model
-        state even if an exception occurs during metric computation.
+        This test verifies that the try/finally block correctly restores
+        the model state even if an exception occurs during metric
+        computation.
         """
         model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
 
@@ -545,8 +548,9 @@ class TestTrainingMAPComputation:
     def test_model_eval_mode_during_training_metric_computation(self):
         """Test that model is in eval mode during training metric computation.
 
-        This test verifies that the model is temporarily set to eval mode
-        when computing metrics during training to get proper predictions for NMS.
+        This test verifies that the model is temporarily set to eval
+        mode when computing metrics during training to get proper
+        predictions for NMS.
         """
         model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
 
@@ -587,8 +591,8 @@ class TestTrainingMAPComputation:
     def test_validation_step_does_not_switch_model_mode(self):
         """Test that validation step does not switch model mode.
 
-        During validation, the model is already in eval mode by Lightning,
-        so we should not see any mode switching.
+        During validation, the model is already in eval mode by
+        Lightning, so we should not see any mode switching.
         """
         model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
 
@@ -677,7 +681,8 @@ class TestErrorHandling:
     """Tests for error handling in metric computation."""
 
     def test_exception_logged_during_metric_computation(self, caplog):
-        """Test that exceptions during metric computation are logged as warnings."""
+        """Test that exceptions during metric computation are logged as
+        warnings."""
         model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
         model.setup()
 
