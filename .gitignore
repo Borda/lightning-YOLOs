@@ -210,3 +210,4 @@ __marimo__/
 *.pt
 *.pth
 *.onnx
+*.torchscript

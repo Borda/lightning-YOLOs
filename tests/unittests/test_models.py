@@ -444,3 +444,266 @@ class TestUpdateMetricsLogic:
 
         # Verify NMS was called
         mock_nms.assert_called_once()
+
+
+class TestTrainingMAPComputation:
+    """Tests for the training mAP computation logic that switches model
+    mode."""
+
+    @pytest.fixture
+    def obb_model_with_metrics(self):
+        """Create and setup a LitYOLOOBB model with 2 classes for testing."""
+        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
+        model.setup()
+        return model
+
+    @pytest.fixture
+    def mock_batch(self):
+        """Create a mock batch with valid data for testing."""
+        return {
+            "img": torch.randn(2, 3, 640, 640),
+            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
+            "cls": torch.tensor([[0], [1]]),
+            "batch_idx": torch.tensor([0, 1]),
+        }
+
+    def test_model_state_restored_after_metric_computation(self, obb_model_with_metrics, mock_batch):
+        """Test that model training state is correctly restored after metric
+        computation.
+
+        This test verifies that when computing training metrics:
+        1. The model is temporarily switched to eval mode
+        2. The original training state is correctly restored after computation
+        """
+        model = obb_model_with_metrics
+        batch = mock_batch
+
+        # Set model to training mode
+        model.model.train()
+        assert model.model.training, "Model should start in training mode"
+
+        # Track the training state during the step
+        training_states = []
+        original_forward = model.model.forward
+
+        def tracked_forward(x):
+            training_states.append(model.model.training)
+            return original_forward(x)
+
+        # Patch the forward method to track training state
+        model.model.forward = tracked_forward
+
+        # Run the training step which includes metric computation
+        loss = model._compute_step(batch, "train")
+
+        # Restore original forward
+        model.model.forward = original_forward
+
+        # Verify model is back in training mode
+        assert model.model.training, "Model should be restored to training mode after metric computation"
+        assert isinstance(loss, torch.Tensor), "Loss should be returned as a tensor"
+
+        # Verify that model was in eval mode during at least one forward pass (for metrics)
+        # The first forward might be in train mode (for loss), second should be in eval (for metrics)
+        assert len(training_states) >= 2, "Should have at least 2 forward passes"
+        assert False in training_states, "Model should have been in eval mode at some point"
+
+    def test_model_state_restored_when_metric_computation_fails(self, obb_model_with_metrics, mock_batch):
+        """Test that model state is restored even when metric computation
+        fails.
+
+        This test verifies that the try/finally block correctly restores
+        the model state even if an exception occurs during metric
+        computation.
+        """
+        model = obb_model_with_metrics
+        batch = mock_batch
+
+        # Set model to training mode
+        model.model.train()
+        initial_training_state = model.model.training
+
+        # Mock _update_metrics to raise an exception
+        original_update_metrics = model._update_metrics
+
+        def failing_update_metrics(*args, **kwargs):
+            raise RuntimeError("Simulated metric failure")
+
+        model._update_metrics = failing_update_metrics
+
+        # Run the training step - it should handle the exception gracefully
+        loss = model._compute_step(batch, "train")
+
+        # Restore original method
+        model._update_metrics = original_update_metrics
+
+        # Verify model is back in training mode despite the exception
+        assert model.model.training == initial_training_state, "Model state should be restored even after exception"
+        assert isinstance(loss, torch.Tensor), "Loss should still be returned"
+
+    def test_model_eval_mode_during_training_metric_computation(self, obb_model_with_metrics, mock_batch):
+        """Test that model is in eval mode during training metric computation.
+
+        This test verifies that the model is temporarily set to eval
+        mode when computing metrics during training to get proper
+        predictions for NMS.
+        """
+        model = obb_model_with_metrics
+        batch = mock_batch
+
+        model.model.train()
+
+        # Track model mode during metric update
+        mode_during_metric_update = []
+        original_update_metrics = model._update_metrics
+
+        def track_mode(*args, **kwargs):
+            mode_during_metric_update.append(model.model.training)
+            # Don't actually call the original to avoid complexity
+
+        model._update_metrics = track_mode
+
+        # Run the training step
+        model._compute_step(batch, "train")
+
+        # Restore
+        model._update_metrics = original_update_metrics
+
+        # Verify model was in eval mode during metric computation
+        assert len(mode_during_metric_update) > 0, "Metric update should have been called"
+        # During training, metrics are computed with model in eval mode
+        assert False in mode_during_metric_update, "Model should be in eval mode when computing training metrics"
+
+    def test_validation_step_does_not_switch_model_mode(self, obb_model_with_metrics, mock_batch):
+        """Test that validation step does not switch model mode.
+
+        During validation, the model is already in eval mode by
+        Lightning, so we should not see any mode switching.
+        """
+        model = obb_model_with_metrics
+        batch = mock_batch
+
+        # Track model mode changes
+        mode_changes = []
+        original_train = model.model.train
+        original_eval = model.model.eval
+
+        def track_train(mode=True):
+            mode_changes.append(("train", mode))
+            return original_train(mode)
+
+        def track_eval():
+            mode_changes.append(("eval", True))
+            return original_eval()
+
+        model.model.train = track_train
+        model.model.eval = track_eval
+
+        # Set to eval mode as Lightning would do
+        model.model.eval()
+        mode_changes.clear()  # Clear the initial eval call
+
+        # Run validation step
+        with torch.no_grad():
+            loss = model._compute_step(batch, "val")
+
+        # Restore
+        model.model.train = original_train
+        model.model.eval = original_eval
+
+        # During validation, we should not see mode switching (no train() or eval() calls)
+        # since the model is already in eval mode
+        assert isinstance(loss, torch.Tensor), "Loss should be returned"
+        assert len(mode_changes) == 0, "Validation should not switch model mode"
+
+
+class TestMetricUpdateCalls:
+    """Tests that _update_metrics is triggered in the appropriate code
+    paths."""
+
+    @pytest.fixture
+    def obb_model_with_metrics(self):
+        """Create and setup a LitYOLOOBB model with 2 classes for testing."""
+        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
+        model.setup()
+        return model
+
+    @pytest.fixture
+    def mock_batch(self):
+        """Create a mock batch with valid data for testing."""
+        return {
+            "img": torch.randn(2, 3, 640, 640),
+            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
+            "cls": torch.tensor([[0], [1]]),
+            "batch_idx": torch.tensor([0, 1]),
+        }
+
+    def test_update_metrics_called_during_training(self, obb_model_with_metrics, mock_batch):
+        """Test that _update_metrics is called during training step."""
+        model = obb_model_with_metrics
+        batch = mock_batch
+
+        # Track if _update_metrics was called
+        update_called = []
+        original_update = model._update_metrics
+
+        def track_update(*args, **kwargs):
+            update_called.append(True)
+            # Don't actually call it to avoid tensor format issues
+
+        model._update_metrics = track_update
+
+        # Run training step
+        model._compute_step(batch, "train")
+
+        # Restore
+        model._update_metrics = original_update
+
+        # Verify it was called
+        assert len(update_called) > 0, "_update_metrics should be called during training"
+
+
+class TestErrorHandling:
+    """Tests for error handling in metric computation."""
+
+    @pytest.fixture
+    def obb_model_with_metrics(self):
+        """Create and setup a LitYOLOOBB model with 2 classes for testing."""
+        model = LitYOLOOBB(model_name="yolo11n-obb.pt", num_classes=2)
+        model.setup()
+        return model
+
+    @pytest.fixture
+    def mock_batch(self):
+        """Create a mock batch with valid data for testing."""
+        return {
+            "img": torch.randn(2, 3, 640, 640),
+            "bboxes": torch.tensor([[0.5, 0.5, 0.2, 0.1, 0.0], [0.3, 0.3, 0.1, 0.1, 0.0]]),
+            "cls": torch.tensor([[0], [1]]),
+            "batch_idx": torch.tensor([0, 1]),
+        }
+
+    def test_exception_logged_during_metric_computation(self, obb_model_with_metrics, mock_batch, caplog):
+        """Test that exceptions during metric computation are logged as
+        warnings."""
+        model = obb_model_with_metrics
+        batch = mock_batch
+
+        # Mock _update_metrics to raise an exception
+        original_update_metrics = model._update_metrics
+
+        def failing_update_metrics(*args, **kwargs):
+            raise RuntimeError("Simulated metric failure")
+
+        model._update_metrics = failing_update_metrics
+
+        # Run the training step
+        with caplog.at_level("WARNING"):
+            loss = model._compute_step(batch, "train")
+
+        # Restore
+        model._update_metrics = original_update_metrics
+
+        # Verify warning was logged
+        assert "train metrics failed" in caplog.text.lower(), "Exception should be logged as warning"
+        assert isinstance(loss, torch.Tensor), "Loss should still be returned"
