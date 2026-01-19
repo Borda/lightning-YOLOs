@@ -38,7 +38,7 @@ dependencies = [
   "torch>=2",
   "torchmetrics[detection]",
   "tqdm>=4.60",
-  "ultralytics",
+  "ultralytics>8.3.0,<8.4.0",
 ]
 
 optional-dependencies.dev = [
