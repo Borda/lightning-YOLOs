@@ -55,7 +55,7 @@ repos:
         additional_dependencies:
           - mdformat-gfm >=1.0.0
           - mdformat-black >=0.1
-          - mdformat_frontmatter >=2.0.0
+          #- mdformat_frontmatter >=2.0.0
         args: ["--number"]
 
   - repo: https://github.com/tox-dev/pyproject-fmt
